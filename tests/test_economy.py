@@ -21,15 +21,21 @@ ALWAYS_FAIL = dict(base_fail_rate=1.0, max_fail_rate=0.0)
 
 
 def _pool(roles, *, wealth=100.0, has_house=False, state=State.ACTIVE, skill=0.5):
+    """Housing is universal, so builders are also occupant candidates. To keep
+    the resident-focused tests deterministic, builders are pre-housed here (a
+    working builder has a home) -- they act purely as suppliers."""
+    roles_arr = np.array(roles, dtype=np.int8)
     n = len(roles)
+    hh = np.full(n, has_house, dtype=bool)
+    hh[roles_arr == Role.BUILDER] = True
     return AgentPool(
-        role=np.array(roles, dtype=np.int8),
+        role=roles_arr,
         state=np.full(n, state, dtype=np.int8),
         skill=np.full(n, float(skill), dtype=np.float64),
         wealth=np.full(n, float(wealth), dtype=np.float64),
-        has_house=np.full(n, has_house, dtype=bool),
+        has_house=hh,
         prison_remaining=np.zeros(n, dtype=np.int32),
-        house_quality=np.full(n, 0.5 if has_house else 0.0, dtype=np.float64),
+        house_quality=np.where(hh, 0.5, 0.0).astype(np.float64),
     )
 
 
@@ -65,7 +71,7 @@ def test_failed_build_does_not_transact_and_reports_pair():
     assert not pool.has_house[1]  # not housed
     assert pool.wealth[1] == 200.0  # no payment on failure
     assert list(info["failed_builders"]) == [0]
-    assert list(info["failed_residents"]) == [1]
+    assert list(info["failed_occupants"]) == [1]
 
 
 def test_skilled_builder_still_fails_at_the_floor():
@@ -75,6 +81,24 @@ def test_skilled_builder_still_fails_at_the_floor():
     info = attempt_builds(pool, cfg, np.random.default_rng(0))
     assert info["houses_built"] == 0
     assert list(info["failed_builders"]) == [0]
+
+
+def test_builders_are_also_housed_universal_housing():
+    # 50 houseless builders -> they build each other's houses (not their own).
+    n = 50
+    pool = AgentPool(
+        role=np.full(n, Role.BUILDER, np.int8),
+        state=np.full(n, State.ACTIVE, np.int8),
+        skill=np.full(n, 0.9),
+        wealth=np.full(n, 500.0),
+        has_house=np.zeros(n, bool),  # all houseless
+        prison_remaining=np.zeros(n, np.int32),
+        house_quality=np.zeros(n, np.float64),
+    )
+    info = attempt_builds(pool, EconomyConfig(**NEVER_FAIL), np.random.default_rng(0))
+    assert info["houses_built"] > 0  # builders housing builders
+    assert pool.has_house.sum() == info["houses_built"]
+    assert pool.wealth.sum() == 50 * 500.0  # transfers conserve total wealth
 
 
 def test_resident_who_cannot_afford_is_skipped():

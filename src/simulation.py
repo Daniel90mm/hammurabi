@@ -110,7 +110,7 @@ class Simulation:
             self.params.punishment,
             self.rng,
             result["failed_builders"],
-            result["failed_residents"],
+            result["failed_occupants"],
         )
 
         switches = switch_professions(

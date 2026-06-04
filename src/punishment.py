@@ -50,12 +50,15 @@ def apply_failures(
     punishment: float,
     rng: np.random.Generator,
     failed_builders: np.ndarray,
-    failed_residents: np.ndarray,
+    failed_occupants: np.ndarray,
 ) -> dict[str, int]:
     """Apply harm + punishment for a batch of failed builds. Mutates ``pool``.
 
-    ``failed_builders[i]`` built the house that failed for ``failed_residents[i]``.
+    ``failed_builders[i]`` built the house that failed for ``failed_occupants[i]``.
+    The occupant may be of either role (housing is universal).
     """
+    # "resident_deaths" is the legacy key name; it counts occupant deaths of
+    # either role (the GUI already labels it "occupant deaths").
     stats = {
         "resident_deaths": 0,
         "builder_deaths": 0,
@@ -66,10 +69,10 @@ def apply_failures(
     if n == 0:
         return stats
 
-    # 1. Occupant harm roll -- the collapse may kill the resident.
+    # 1. Occupant harm roll -- the collapse may kill the occupant.
     killed = rng.random(n) < config.resident_death_prob
-    dead_residents = failed_residents[killed]
-    pool.state[dead_residents] = State.DEAD
+    dead_occupants = failed_occupants[killed]
+    pool.state[dead_occupants] = State.DEAD
     stats["resident_deaths"] = int(killed.sum())
 
     # 2. Builder punishment, drawn per failure from the P-blend.

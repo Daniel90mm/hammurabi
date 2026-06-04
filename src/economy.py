@@ -49,46 +49,51 @@ def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
 def attempt_builds(
     pool: AgentPool, config: EconomyConfig, rng: np.random.Generator
 ) -> dict[str, object]:
-    """Match builders to houseless residents and attempt each build.
+    """Match builders to houseless occupants and attempt each build.
 
-    Step-2/3 matching is non-spatial and simple: each available builder builds at
-    most one house this tick, paired randomly with a houseless, paying resident.
+    Housing is universal: **every** active agent needs a house, builders
+    included -- so a builder lives in a house that can decay and collapse just
+    like anyone's. Builders are the suppliers; any houseless paying agent (of
+    either role) is a candidate occupant. A builder cannot build their own house
+    (self-pairs are dropped). Matching is non-spatial: each builder builds at
+    most one house this tick, paired randomly.
 
-    Each pair then succeeds or fails based on the builder's skill
+    Each pair succeeds or fails on the builder's skill
     (``fail_prob = base_fail_rate + (1 - skill) * max_fail_rate``, so even a
     perfectly skilled builder fails at the irreducible floor). On **success** the
-    resident
-    pays the fixed price to the builder (wealth-conserving) and is housed. On
-    **failure** nothing is transacted -- the (builder, resident) pair is returned
-    so the punishment layer can apply consequences; the resident stays houseless
-    and may retry next tick.
+    occupant pays the fixed price to the builder (wealth-conserving), is housed,
+    and the house inherits the builder's skill as its build quality. On
+    **failure** nothing is transacted -- the (builder, occupant) pair is returned
+    for the punishment layer; the occupant stays houseless and may retry.
 
     Returns
     -------
     {"houses_built": int,
      "failed_builders": np.ndarray[int],
-     "failed_residents": np.ndarray[int]}
+     "failed_occupants": np.ndarray[int]}
     """
     empty = np.empty(0, dtype=np.int64)
     active = pool.active_mask()
 
     builders = np.flatnonzero(active & (pool.role == Role.BUILDER))
-    residents = np.flatnonzero(
-        active
-        & (pool.role == Role.RESIDENT)
-        & ~pool.has_house
-        & (pool.wealth >= config.house_price)
+    occupants = np.flatnonzero(
+        active & ~pool.has_house & (pool.wealth >= config.house_price)
     )
 
-    n_builds = int(min(builders.size, residents.size))
+    n_builds = int(min(builders.size, occupants.size))
     if n_builds == 0:
-        return {"houses_built": 0, "failed_builders": empty, "failed_residents": empty}
+        return {"houses_built": 0, "failed_builders": empty, "failed_occupants": empty}
 
     # Random pairing -- shuffle both pools and zip the first n_builds of each.
     rng.shuffle(builders)
-    rng.shuffle(residents)
+    rng.shuffle(occupants)
     pair_builders = builders[:n_builds]
-    pair_residents = residents[:n_builds]
+    pair_occupants = occupants[:n_builds]
+
+    # A builder can't build their own house -- drop self-pairs (they retry).
+    keep = pair_builders != pair_occupants
+    pair_builders = pair_builders[keep]
+    pair_occupants = pair_occupants[keep]
 
     fail_prob = np.clip(
         config.base_fail_rate
@@ -96,21 +101,21 @@ def attempt_builds(
         0.0,
         1.0,
     )
-    failed = rng.random(n_builds) < fail_prob
+    failed = rng.random(pair_builders.size) < fail_prob
     succeeded = ~failed
 
     ok_builders = pair_builders[succeeded]
-    ok_residents = pair_residents[succeeded]
-    pool.wealth[ok_residents] -= config.house_price
+    ok_occupants = pair_occupants[succeeded]
+    pool.wealth[ok_occupants] -= config.house_price
     pool.wealth[ok_builders] += config.house_price
-    pool.has_house[ok_residents] = True
+    pool.has_house[ok_occupants] = True
     # The house inherits the builder's skill as its build quality (drives decay).
-    pool.house_quality[ok_residents] = pool.skill[ok_builders]
+    pool.house_quality[ok_occupants] = pool.skill[ok_builders]
 
     return {
         "houses_built": int(succeeded.sum()),
         "failed_builders": pair_builders[failed],
-        "failed_residents": pair_residents[failed],
+        "failed_occupants": pair_occupants[failed],
     }
 
 
