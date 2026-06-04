@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-04 - Sim freezes ~tick 13 without decay; ratio equilibrium explained
+
+Type: Finding
+
+Observed at pop=100k, σ=0.4, ρ=0.1, P=0.5: tick 1 houses 95.7% of residents at once, ~3000 build failures -> ~3000 imprisonments + ~900 occupant deaths; by ~tick 13 all buildable residents are housed, after which there are zero builds, failures, or imprisonments forever, and the role ratio sits at ~84.5% builders / 15.5% residents unchanging. Both are correct, not bugs: (1) houses never decay (step 7 absent), so construction is a one-time event and the justice system goes idle once it finishes; (2) the static ratio is the wealth gap closing -- residents convert to builders until each poor convert dilutes builder mean wealth enough to bring it within the switch threshold, then switching halts. Implication for visualization: live time-series charts will show a short transient then flatline. Housing decay (step 7) is the prerequisite for the sim to be interesting over time, and therefore for charts to be worth watching. Also: the simulation currently keeps no per-tick history (only current state + cumulative totals) -- live charts require adding a history buffer (the README's logger).
+
 ## 2026-06-04 - Step 4 (profession switching) wakes up ρ
 
 Type: Finding
