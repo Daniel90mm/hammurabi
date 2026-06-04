@@ -24,6 +24,7 @@ Run:  .venv/bin/python src/dashboard.py [--population N --punishment P ...]
 from __future__ import annotations
 
 import argparse
+import math
 import tkinter as tk
 
 import numpy as np
@@ -51,6 +52,34 @@ FONT_TITLE = ("monospace", 13, "bold")
 
 MAP_PX = 520  # initial map canvas size; it expands to fill the window
 MAX_DRAW = 4000  # cap on agents drawn per frame (subsampled if exceeded)
+
+# Map each seed parameter to/from a normalized 0-1 slider position. Population
+# uses a log scale (it spans 100..100,000); the rest are linear over their range.
+def _pop_to_real(t: float) -> int:
+    return int(round(100 * (1000 ** t)))
+
+
+def _pop_to_norm(v: float) -> float:
+    return math.log(max(v, 100) / 100) / math.log(1000)
+
+
+# key -> (label, to_real(t), to_norm(value), value formatter)
+PARAM_NORM = {
+    "population": ("pop", _pop_to_real, _pop_to_norm, lambda v: str(v)),
+    "skill_variance": (
+        "σ",
+        lambda t: round(0.01 + t * 0.49, 3),
+        lambda v: (v - 0.01) / 0.49,
+        lambda v: f"{v:.3f}",
+    ),
+    "risk_tolerance": (
+        "ρ",
+        lambda t: round(0.1 + t * 0.8, 3),
+        lambda v: (v - 0.1) / 0.8,
+        lambda v: f"{v:.2f}",
+    ),
+    "punishment": ("P", lambda t: round(t, 3), lambda v: v, lambda v: f"{v:.2f}"),
+}
 
 # Short, non-load-bearing explainers for the seed fields (shown on ⓘ hover).
 PARAM_HELP = {
@@ -194,36 +223,30 @@ class Dashboard:
                 legend, text=f"■ {name}", font=FONT, fg=color, bg=BG
             ).pack(side="left", padx=(0, 14))
 
-    # --- seed controls ---
-
-    # (field key, label, formatter) prefilled from the current run.
-    _FIELDS = (
-        ("population", "pop", lambda p: str(p.population)),
-        ("skill_variance", "σ", lambda p: str(p.skill_variance)),
-        ("risk_tolerance", "ρ", lambda p: str(p.risk_tolerance)),
-        ("punishment", "P", lambda p: str(p.punishment)),
-    )
+    # --- seed controls (normalized 0-1 sliders) ---
 
     def _build_controls(self) -> None:
         bar = tk.Frame(self.root, bg=BG)
         bar.pack(side="top", fill="x", padx=8, pady=(8, 0))
 
-        tk.Label(bar, text="SEED", font=FONT_BOLD, fg=ACCENT, bg=BG).pack(side="left")
+        tk.Label(bar, text="SEED", font=FONT_BOLD, fg=ACCENT, bg=BG).pack(
+            side="left", padx=(0, 4)
+        )
 
-        self.entries: dict[str, tk.Entry] = {}
+        self.sliders: dict[str, tk.Scale] = {}
+        self.value_labels: dict[str, tk.Label] = {}
         p = self.sim.params
-        for key, label, fmt in self._FIELDS:
-            tk.Label(bar, text=label, font=FONT, fg=DIM, bg=BG).pack(
-                side="left", padx=(12, 1)
-            )
-            info = tk.Label(bar, text="ⓘ", font=FONT, fg=DIM, bg=BG, cursor="question_arrow")
-            info.pack(side="left", padx=(0, 2))
-            Tooltip(info, PARAM_HELP[key])
-            e = self._entry(bar, fmt(p), width=6)
-            self.entries[key] = e
+        current = {
+            "population": p.population,
+            "skill_variance": p.skill_variance,
+            "risk_tolerance": p.risk_tolerance,
+            "punishment": p.punishment,
+        }
+        for key, (label, to_real, to_norm, fmt) in PARAM_NORM.items():
+            self._build_slider(bar, key, label, to_real, to_norm, fmt, current[key])
 
-        tk.Label(bar, text="seed", font=FONT, fg=DIM, bg=BG).pack(side="left", padx=(12, 2))
-        self.seed_entry = self._entry(bar, str(self.sim.seed), width=6)
+        tk.Label(bar, text="seed", font=FONT, fg=DIM, bg=BG).pack(side="left", padx=(10, 2))
+        self.seed_entry = self._entry(bar, str(self.sim.seed), width=5)
 
         tk.Button(
             bar,
@@ -236,7 +259,47 @@ class Dashboard:
             bd=0,
             padx=10,
             command=self._on_run,
-        ).pack(side="left", padx=(14, 0))
+        ).pack(side="left", padx=(12, 0))
+
+    def _build_slider(self, bar, key, label, to_real, to_norm, fmt, current_value):
+        """One labelled 0-1 slider with a live real-value readout and ⓘ help."""
+        cell = tk.Frame(bar, bg=BG)
+        cell.pack(side="left", padx=(10, 0))
+
+        head = tk.Frame(cell, bg=BG)
+        head.pack(anchor="w")
+        tk.Label(head, text=label, font=FONT, fg=DIM, bg=BG).pack(side="left")
+        info = tk.Label(head, text="ⓘ", font=FONT, fg=DIM, bg=BG, cursor="question_arrow")
+        info.pack(side="left", padx=(2, 6))
+        Tooltip(info, PARAM_HELP[key])
+        value = tk.Label(head, text=fmt(current_value), font=FONT_BOLD, fg=FG, bg=BG)
+        value.pack(side="left")
+        self.value_labels[key] = value
+
+        slider = tk.Scale(
+            cell,
+            from_=0.0,
+            to=1.0,
+            resolution=0.001,
+            orient="horizontal",
+            showvalue=False,
+            length=120,
+            width=10,
+            bg=BG,
+            troughcolor=ENTRY_BG,
+            activebackground=ACCENT,
+            highlightthickness=0,
+            bd=0,
+            sliderrelief="flat",
+            command=lambda t, k=key: self._on_slider(k, float(t)),
+        )
+        slider.set(min(1.0, max(0.0, to_norm(current_value))))
+        slider.pack(anchor="w")
+        self.sliders[key] = slider
+
+    def _on_slider(self, key: str, t: float) -> None:
+        _, to_real, _, fmt = PARAM_NORM[key]
+        self.value_labels[key].config(text=fmt(to_real(t)))
 
     def _entry(self, parent: tk.Widget, value: str, width: int) -> tk.Entry:
         vcmd = (self.root.register(self._is_number), "%P")
@@ -271,13 +334,16 @@ class Dashboard:
             return False
 
     def _on_run(self) -> None:
-        """Read the seed fields, rebuild the simulation, reset and redraw."""
+        """Read the seed sliders, rebuild the simulation, start and redraw."""
+        def real(key):
+            return PARAM_NORM[key][1](self.sliders[key].get())
+
         try:
             params = FoundingParams(
-                population=int(self.entries["population"].get()),
-                skill_variance=float(self.entries["skill_variance"].get()),
-                risk_tolerance=float(self.entries["risk_tolerance"].get()),
-                punishment=float(self.entries["punishment"].get()),
+                population=real("population"),
+                skill_variance=real("skill_variance"),
+                risk_tolerance=real("risk_tolerance"),
+                punishment=real("punishment"),
             )
             seed = int(self.seed_entry.get())
         except ValueError as exc:
