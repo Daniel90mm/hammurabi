@@ -293,7 +293,7 @@ class Dashboard:
             profession=self.sim.profession,
         )
         self._gen_positions()
-        self.playing = False
+        self.playing = True  # Run starts the simulation immediately
         self.status.config(fg=DIM)
         self.canvas.focus_set()  # move focus out of the entry so keys control the sim
         self._render_frame()
