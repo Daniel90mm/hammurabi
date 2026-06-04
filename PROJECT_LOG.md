@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-04 - Step 3 (failure + punishment) differentiates regimes
+
+Type: Finding
+
+Builds now fail on skill (fail_prob = (1-skill)*max_fail_rate) and P is mapped continuously to consequences via death_prob=max(0,1-2P), fine_prob=max(0,2P-1), prison_prob=remainder (anchors: P=0 death, P=0.5 prison, P=1 fine). 50-tick runs at fixed seed show clean separation: P=0 permanently removes failing builders (512->486), P=0.5 imprisons then releases them (~26 imprisoned at t=10, back to 512 by t=25), P=1 only fines them (512 stays). Two notable emergent properties: (1) occupant deaths (~10) are identical across regimes because punishment targets builders not victims, so harsher regimes raise the TOTAL death toll with no safety benefit yet -- there is no feedback making punishment improve build quality. That feedback is the project's central question and needs profession switching (step 4) + skill mobility/education (later). (2) skill_variance is still ~inert because the mean failure rate depends on mean skill (0.5), not its spread; expect it to matter once selection exists. Dynamics remain front-loaded (no decay until step 7).
+
 ## 2026-06-04 - Naive economy (step 2) produces no lasting inequality
 
 Type: Finding

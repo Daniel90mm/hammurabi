@@ -24,6 +24,8 @@ class EconomyConfig:
 
     base_income: float = 10.0  # flat wage paid to every active agent per tick
     house_price: float = 100.0  # fixed cost of one house (step 5 makes it emerge)
+    max_fail_rate: float = 0.10  # failure prob for a zero-skill builder; scales
+    #                              with (1 - skill), so skill 1.0 never fails
 
 
 def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
@@ -37,16 +39,28 @@ def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
     return {"wage_paid": config.base_income * int(np.count_nonzero(active))}
 
 
-def build_houses(
+def attempt_builds(
     pool: AgentPool, config: EconomyConfig, rng: np.random.Generator
-) -> dict[str, int]:
-    """Match houseless active residents (who can afford it) with active builders.
+) -> dict[str, object]:
+    """Match builders to houseless residents and attempt each build.
 
-    Step-2 matching is non-spatial and simple: each available builder builds at
-    most one house this tick. We pair as many (builder, resident) as we can, the
-    resident pays the fixed price to the builder, and the resident is housed.
-    The price transfer is wealth-conserving.
+    Step-2/3 matching is non-spatial and simple: each available builder builds at
+    most one house this tick, paired randomly with a houseless, paying resident.
+
+    Each pair then succeeds or fails based on the builder's skill
+    (``fail_prob = (1 - skill) * max_fail_rate``). On **success** the resident
+    pays the fixed price to the builder (wealth-conserving) and is housed. On
+    **failure** nothing is transacted -- the (builder, resident) pair is returned
+    so the punishment layer can apply consequences; the resident stays houseless
+    and may retry next tick.
+
+    Returns
+    -------
+    {"houses_built": int,
+     "failed_builders": np.ndarray[int],
+     "failed_residents": np.ndarray[int]}
     """
+    empty = np.empty(0, dtype=np.int64)
     active = pool.active_mask()
 
     builders = np.flatnonzero(active & (pool.role == Role.BUILDER))
@@ -59,16 +73,26 @@ def build_houses(
 
     n_builds = int(min(builders.size, residents.size))
     if n_builds == 0:
-        return {"houses_built": 0}
+        return {"houses_built": 0, "failed_builders": empty, "failed_residents": empty}
 
     # Random pairing -- shuffle both pools and zip the first n_builds of each.
     rng.shuffle(builders)
     rng.shuffle(residents)
-    chosen_builders = builders[:n_builds]
-    chosen_residents = residents[:n_builds]
+    pair_builders = builders[:n_builds]
+    pair_residents = residents[:n_builds]
 
-    pool.wealth[chosen_residents] -= config.house_price
-    pool.wealth[chosen_builders] += config.house_price
-    pool.has_house[chosen_residents] = True
+    fail_prob = (1.0 - pool.skill[pair_builders]) * config.max_fail_rate
+    failed = rng.random(n_builds) < fail_prob
+    succeeded = ~failed
 
-    return {"houses_built": n_builds}
+    ok_builders = pair_builders[succeeded]
+    ok_residents = pair_residents[succeeded]
+    pool.wealth[ok_residents] -= config.house_price
+    pool.wealth[ok_builders] += config.house_price
+    pool.has_house[ok_residents] = True
+
+    return {
+        "houses_built": int(succeeded.sum()),
+        "failed_builders": pair_builders[failed],
+        "failed_residents": pair_residents[failed],
+    }

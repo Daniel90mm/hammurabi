@@ -45,6 +45,8 @@ class AgentPool:
     wealth : np.ndarray[float64] -- accumulated wealth (currency-agnostic)
     has_house : np.ndarray[bool] -- whether the agent currently has a house
         (meaningful for residents; builders do not request housing)
+    prison_remaining : np.ndarray[int32] -- ticks left in prison
+        (0 = not imprisoned; only nonzero while state == IMPRISONED)
     """
 
     role: np.ndarray
@@ -52,6 +54,7 @@ class AgentPool:
     skill: np.ndarray
     wealth: np.ndarray
     has_house: np.ndarray
+    prison_remaining: np.ndarray
 
     @property
     def n(self) -> int:
@@ -84,8 +87,14 @@ class AgentPool:
         state = np.full(n, State.ACTIVE, dtype=np.int8)
         wealth = np.full(n, float(initial_wealth), dtype=np.float64)
         has_house = np.zeros(n, dtype=bool)
+        prison_remaining = np.zeros(n, dtype=np.int32)
         return cls(
-            role=role, state=state, skill=skill, wealth=wealth, has_house=has_house
+            role=role,
+            state=state,
+            skill=skill,
+            wealth=wealth,
+            has_house=has_house,
+            prison_remaining=prison_remaining,
         )
 
     # --- convenience masks (handy for stats and, later, the tick loop) ---
@@ -95,6 +104,12 @@ class AgentPool:
 
     def alive_count(self) -> int:
         return int(np.count_nonzero(self.state != State.DEAD))
+
+    def dead_count(self) -> int:
+        return int(np.count_nonzero(self.state == State.DEAD))
+
+    def imprisoned_count(self) -> int:
+        return int(np.count_nonzero(self.state == State.IMPRISONED))
 
     def role_counts(self) -> dict[str, int]:
         """Count active agents by role (dead/imprisoned excluded)."""

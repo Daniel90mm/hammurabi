@@ -15,7 +15,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from agents import AgentPool
-from economy import EconomyConfig, build_houses, earn_income
+from economy import EconomyConfig, attempt_builds, earn_income
+from punishment import PunishmentConfig, apply_failures, tick_prisons
 
 
 @dataclass(frozen=True)
@@ -54,10 +55,12 @@ class Simulation:
         params: FoundingParams,
         seed: int = 0,
         economy: EconomyConfig | None = None,
+        punishment: PunishmentConfig | None = None,
     ) -> None:
         self.params = params
         self.seed = seed
         self.economy = economy or EconomyConfig()
+        self.punishment = punishment or PunishmentConfig()
         self.rng = np.random.default_rng(seed)
         self.tick_count = 0
         self.agents = AgentPool.create(
@@ -65,6 +68,14 @@ class Simulation:
             self.rng,
             skill_variance=params.skill_variance,
         )
+        # Cumulative tallies across the whole run.
+        self.totals = {
+            "build_failures": 0,
+            "resident_deaths": 0,
+            "builder_deaths": 0,
+            "imprisonments": 0,
+            "fines": 0,
+        }
 
     def tick(self) -> None:
         """Advance the simulation by one tick.
@@ -74,16 +85,33 @@ class Simulation:
         build phases:
 
             1. Agents earn income                                    [step 2]
-            2-3. Residents request houses; builders build them       [step 2]
-                 (price is fixed for now; emerges from supply/demand in step 5)
-            4. Each build succeeds or fails based on builder skill    [step 3]
-            5. On failure: injury/death roll + punishment applied (P) [step 3]
+            2-4. Residents request houses; builders build; each       [step 2/3]
+                 build succeeds or fails based on builder skill
+            5. On failure: occupant harm roll + punishment (P)        [step 3]
+            (prisons advance; sentences end and builders return)      [step 3]
             6. Agents evaluate professions and some switch roles      [step 4]
             7. Houses age and decay                                   [step 7]
             8. Statistics logged                                      [step 7]
         """
+        # Released prisoners rejoin the active pool before this tick's building.
+        tick_prisons(self.agents)
+
         earn_income(self.agents, self.economy)
-        build_houses(self.agents, self.economy, self.rng)
+        result = attempt_builds(self.agents, self.economy, self.rng)
+
+        consequences = apply_failures(
+            self.agents,
+            self.punishment,
+            self.params.punishment,
+            self.rng,
+            result["failed_builders"],
+            result["failed_residents"],
+        )
+
+        self.totals["build_failures"] += int(result["failed_builders"].size)
+        for key, val in consequences.items():
+            self.totals[key] += val
+
         self.tick_count += 1
 
     def run(self, n_ticks: int) -> None:
@@ -101,6 +129,11 @@ class Simulation:
             "tick": self.tick_count,
             "alive": self.agents.alive_count(),
             **self.agents.role_counts(),
+            "imprisoned": self.agents.imprisoned_count(),
+            "dead": self.agents.dead_count(),
             "housed": self.agents.housed_resident_count(),
             "mean_wealth": round(mean_wealth, 1),
+            "cum_failures": self.totals["build_failures"],
+            "cum_resident_deaths": self.totals["resident_deaths"],
+            "cum_builder_deaths": self.totals["builder_deaths"],
         }

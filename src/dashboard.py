@@ -58,8 +58,13 @@ STAT_LABELS = {
     "alive": "alive",
     "builders": "builders",
     "residents": "residents",
+    "imprisoned": "imprisoned",
+    "dead": "dead",
     "housed": "housed residents",
     "mean_wealth": "mean wealth",
+    "cum_failures": "build failures",
+    "cum_resident_deaths": "occupant deaths",
+    "cum_builder_deaths": "builder deaths",
 }
 
 
