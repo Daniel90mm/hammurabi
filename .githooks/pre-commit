@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Reject commits where CLAUDE.md and AGENTS.md have diverged.
+set -euo pipefail
+if [[ -f CLAUDE.md && -f AGENTS.md ]]; then
+    if ! cmp -s CLAUDE.md AGENTS.md; then
+        echo "pre-commit: CLAUDE.md and AGENTS.md have diverged." >&2
+        echo "            Run: scripts/sync-agent-docs.sh" >&2
+        echo "            Or:  cp CLAUDE.md AGENTS.md  (or the reverse)" >&2
+        exit 1
+    fi
+fi

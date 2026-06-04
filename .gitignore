@@ -1,0 +1,39 @@
+# Whitelist model — everything is ignored by default.
+# To track a new file type, add a `!`-line below. Do not flip to blacklist.
+
+*
+
+# Re-allow tracked paths
+!.gitignore
+!.githooks/
+!.githooks/**
+!README.md
+!CLAUDE.md
+!AGENTS.md
+!PROJECT_LOG.md
+!DESIGN_PRINCIPLES.md
+!pyproject.toml
+!docs/
+!docs/**
+!scripts/
+!scripts/**
+!src/
+!src/**
+!tests/
+!tests/**
+!data/
+!data/**
+!handoffs/
+!handoffs/**
+!consults/
+!consults/**
+
+# Never track
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+runs/
+artifacts/
