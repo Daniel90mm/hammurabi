@@ -110,10 +110,11 @@ Every run is fully reproducible: `params.json` stores the random seed and model 
 ## Tech Stack
 
 - **Python** with **NumPy** for the simulation core 
-- **Matplotlib** for plot generation
-- **Pillow** for ASCII-to-GIF rendering
+- **Tkinter** (stdlib) for the real-time GUI: a single window split into a 2D overhead city map and a statistics dashboard
+- **Matplotlib** for static plot export
 - **SciPy** for auto-calibration optimization (optional)
-- No GUI — terminal ASCII dashboard for real-time monitoring
+
+> Note: an earlier design mandated a terminal-only ASCII dashboard with "No GUI". That was reversed — see PROJECT_LOG. The visualization is now a simple GUI window. The flat/sharp/dense aesthetic still applies (see DESIGN_PRINCIPLES.md), and the map is a cosmetic view: agent positions do not feed back into the model.
 
 ## Project Structure
 

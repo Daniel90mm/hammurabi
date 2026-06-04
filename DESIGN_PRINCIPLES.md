@@ -9,14 +9,14 @@ These are **hard rules**, not preferences. An agent proposing UI that violates t
 - **Real contrast.** High contrast between foreground and background. No faint grey-on-grey text. No low-contrast borders pretending to be structure.
 - **Clear hierarchy through type and spacing**, not through drop-shadows and colored boxes.
 - **Dense where data is dense.** Do not waste vertical space on oversized padding "for breathing room".
-- **ASCII-first for the dashboard.** The terminal dashboard is the primary visualization. Plots and a thin web viewer are secondary. The ASCII dash should remain readable and information-dense even before graphical output is built.
+- **Simple GUI window is the primary visualization.** A single dead-simple window, split: a 2D overhead map of the city ("Hammurabi") on one side, the statistics dashboard on the other. The **statistics are the main focus**; the map is a faithful but cosmetic view of state (agent positions do not feed back into the model — see PROJECT_LOG). The map redraws **per tick, not per micro-action**. Keep it terminal-*like* in spirit — flat, sharp, monospace, dense — but use real pixels. Static plots (matplotlib) remain a secondary export.
 
 ## Interaction
 
 - **Primary actions are obvious.** Destructive actions are visually distinct, not just red text.
 - **No animated transitions over ~150ms.** Instant feels better than smooth.
 - **Keyboard-first where reasonable.** If the user can complete a task without reaching for the mouse, they should be able to.
-- **The simulation console is the interface.** For the dashboard, think `htop` / `ncurses` — real-time updating, keyboard-controlled, exit 0.
+- **The simulation window is the interface.** Think `htop` rendered to a canvas — real-time updating, keyboard-controlled where reasonable, exits cleanly. Dense and flat, not chrome-heavy.
 
 ## Two-persona test
 
@@ -35,7 +35,7 @@ If a design serves only one persona, it is wrong.
 - Loading skeletons that animate for longer than the content takes to load.
 - Modals for actions that should be inline edits.
 - Tooltips carrying load-bearing information.
-- Fancy animations on the ASCII dashboard. It should just update.
+- Fancy animations on the map or dashboard. It should just update, once per tick.
 
 ## When you're about to deviate
 
