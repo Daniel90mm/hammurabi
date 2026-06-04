@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-04 - Naive economy (step 2) produces no lasting inequality
+
+Type: Finding
+
+With flat income + fixed house price and nothing else, the economy is inert: builders (~512) outnumber residents (~488), so every resident is housed in the first tick or two, building then stops (no decay to renew demand), and mean wealth just climbs uniformly via the flat wage. The one-time build transfer creates a small static wealth gap (builders +price, residents -price) but no ongoing dynamics. This is expected and motivates later steps: failure + punishment (step 3) renews builder scarcity, housing decay (step 7) renews demand, supply/demand pricing (step 5) makes skill/scarcity matter. Do not "fix" the flat economy in isolation — the dynamics are meant to come from those mechanisms.
+
 ## 2026-06-04 - Map is cosmetic-first, not spatially causal
 
 Type: Decision

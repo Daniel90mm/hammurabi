@@ -25,8 +25,9 @@ def main() -> int:
 
     print("seed params:", params)
     print("tick   0:", sim.summary())
-    sim.run(50)
-    print("tick  50:", sim.summary())
+    for t in (10, 25, 50):
+        sim.run(t - sim.tick_count)
+        print(f"tick {t:3d}:", sim.summary())
     return 0
 
 

@@ -43,12 +43,15 @@ class AgentPool:
     state : np.ndarray[int8]  -- State enum value per agent
     skill : np.ndarray[float64] -- competence in [0, 1]
     wealth : np.ndarray[float64] -- accumulated wealth (currency-agnostic)
+    has_house : np.ndarray[bool] -- whether the agent currently has a house
+        (meaningful for residents; builders do not request housing)
     """
 
     role: np.ndarray
     state: np.ndarray
     skill: np.ndarray
     wealth: np.ndarray
+    has_house: np.ndarray
 
     @property
     def n(self) -> int:
@@ -80,7 +83,10 @@ class AgentPool:
         ).astype(np.int8)
         state = np.full(n, State.ACTIVE, dtype=np.int8)
         wealth = np.full(n, float(initial_wealth), dtype=np.float64)
-        return cls(role=role, state=state, skill=skill, wealth=wealth)
+        has_house = np.zeros(n, dtype=bool)
+        return cls(
+            role=role, state=state, skill=skill, wealth=wealth, has_house=has_house
+        )
 
     # --- convenience masks (handy for stats and, later, the tick loop) ---
 
@@ -97,3 +103,10 @@ class AgentPool:
             "builders": int(np.count_nonzero(active & (self.role == Role.BUILDER))),
             "residents": int(np.count_nonzero(active & (self.role == Role.RESIDENT))),
         }
+
+    def housed_resident_count(self) -> int:
+        """Active residents that currently have a house."""
+        active = self.active_mask()
+        return int(
+            np.count_nonzero(active & (self.role == Role.RESIDENT) & self.has_house)
+        )

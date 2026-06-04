@@ -15,6 +15,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from agents import AgentPool
+from economy import EconomyConfig, build_houses, earn_income
 
 
 @dataclass(frozen=True)
@@ -48,9 +49,15 @@ class FoundingParams:
 class Simulation:
     """Holds the population and advances it one tick at a time."""
 
-    def __init__(self, params: FoundingParams, seed: int = 0) -> None:
+    def __init__(
+        self,
+        params: FoundingParams,
+        seed: int = 0,
+        economy: EconomyConfig | None = None,
+    ) -> None:
         self.params = params
         self.seed = seed
+        self.economy = economy or EconomyConfig()
         self.rng = np.random.default_rng(seed)
         self.tick_count = 0
         self.agents = AgentPool.create(
@@ -62,18 +69,21 @@ class Simulation:
     def tick(self) -> None:
         """Advance the simulation by one tick.
 
-        Build order for the body of this loop (README tick loop). Each step is a
-        later build phase; step 1 only advances the counter:
+        Build order for the body of this loop (README tick loop). Steps 1-3 are
+        implemented (flat income + fixed-price building); the rest land in later
+        build phases:
 
-            1. Agents earn income based on role
-            2. Residents request houses (if needed)
-            3. Builders matched to requests (price emerges from supply/demand)
-            4. Each build succeeds or fails based on builder skill
-            5. On failure: injury/death roll + punishment applied (P)
-            6. Agents evaluate professions and some switch roles
-            7. Houses age and decay
-            8. Statistics logged
+            1. Agents earn income                                    [step 2]
+            2-3. Residents request houses; builders build them       [step 2]
+                 (price is fixed for now; emerges from supply/demand in step 5)
+            4. Each build succeeds or fails based on builder skill    [step 3]
+            5. On failure: injury/death roll + punishment applied (P) [step 3]
+            6. Agents evaluate professions and some switch roles      [step 4]
+            7. Houses age and decay                                   [step 7]
+            8. Statistics logged                                      [step 7]
         """
+        earn_income(self.agents, self.economy)
+        build_houses(self.agents, self.economy, self.rng)
         self.tick_count += 1
 
     def run(self, n_ticks: int) -> None:
@@ -83,8 +93,14 @@ class Simulation:
 
     def summary(self) -> dict[str, object]:
         """A snapshot of headline numbers -- the seed of the future stats panel."""
+        active = self.agents.active_mask()
+        mean_wealth = (
+            float(self.agents.wealth[active].mean()) if active.any() else 0.0
+        )
         return {
             "tick": self.tick_count,
             "alive": self.agents.alive_count(),
             **self.agents.role_counts(),
+            "housed": self.agents.housed_resident_count(),
+            "mean_wealth": round(mean_wealth, 1),
         }
