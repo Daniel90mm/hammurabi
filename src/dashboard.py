@@ -75,21 +75,25 @@ class Dashboard:
         self.sim = sim
         self.tick_ms = tick_ms
         self.playing = False
+        self._gen_positions()
+        self._build_widgets()
 
-        n = sim.agents.n
-        # Cosmetic positions in [0, 1), generated once. Seeded off the sim so the
-        # layout is reproducible alongside the run.
-        rng = np.random.default_rng(sim.seed + 1)
+    def _gen_positions(self) -> None:
+        """(Re)generate cosmetic agent positions for the current population.
+
+        Positions live here, not in the model -- the sim doesn't know where
+        agents are (cosmetic-first decision). Seeded off the sim seed so the
+        layout is reproducible alongside the run.
+        """
+        n = self.sim.agents.n
+        rng = np.random.default_rng(self.sim.seed + 1)
         self.pos_x = rng.random(n)
         self.pos_y = rng.random(n)
-
         # Subsample indices for drawing if the population is large.
         if n > MAX_DRAW:
             self.draw_idx = rng.choice(n, size=MAX_DRAW, replace=False)
         else:
             self.draw_idx = np.arange(n)
-
-        self._build_widgets()
 
     # --- widget construction ---
 
@@ -102,6 +106,9 @@ class Dashboard:
         # status / help line first, pinned to the bottom so it survives resizing.
         self.status = tk.Label(self.root, font=FONT, fg=DIM, bg=BG, anchor="w")
         self.status.pack(side="bottom", fill="x", padx=8, pady=(0, 6))
+
+        # seed-parameter control bar (inline edits, no modal) pinned to the top.
+        self._build_controls()
 
         root = tk.Frame(self.root, bg=BG)
         root.pack(fill="both", expand=True, padx=8, pady=8)
@@ -151,6 +158,91 @@ class Dashboard:
             tk.Label(
                 legend, text=f"■ {name}", font=FONT, fg=color, bg=BG
             ).pack(side="left", padx=(0, 14))
+
+    # --- seed controls ---
+
+    # (field key, label, formatter) prefilled from the current run.
+    _FIELDS = (
+        ("population", "pop", lambda p: str(p.population)),
+        ("skill_variance", "σ", lambda p: str(p.skill_variance)),
+        ("risk_tolerance", "ρ", lambda p: str(p.risk_tolerance)),
+        ("punishment", "P", lambda p: str(p.punishment)),
+    )
+
+    def _build_controls(self) -> None:
+        bar = tk.Frame(self.root, bg=BG)
+        bar.pack(side="top", fill="x", padx=8, pady=(8, 0))
+
+        tk.Label(bar, text="SEED", font=FONT_BOLD, fg=ACCENT, bg=BG).pack(side="left")
+
+        self.entries: dict[str, tk.Entry] = {}
+        p = self.sim.params
+        for key, label, fmt in self._FIELDS:
+            tk.Label(bar, text=label, font=FONT, fg=DIM, bg=BG).pack(
+                side="left", padx=(12, 2)
+            )
+            e = self._entry(bar, fmt(p), width=6)
+            self.entries[key] = e
+
+        tk.Label(bar, text="seed", font=FONT, fg=DIM, bg=BG).pack(side="left", padx=(12, 2))
+        self.seed_entry = self._entry(bar, str(self.sim.seed), width=6)
+
+        tk.Button(
+            bar,
+            text="▶ Run",
+            font=FONT_BOLD,
+            fg=BG,
+            bg=ACCENT,
+            activebackground=FG,
+            relief="flat",
+            bd=0,
+            padx=10,
+            command=self._on_run,
+        ).pack(side="left", padx=(14, 0))
+
+    def _entry(self, parent: tk.Widget, value: str, width: int) -> tk.Entry:
+        e = tk.Entry(
+            parent,
+            width=width,
+            font=FONT,
+            fg=FG,
+            bg="#161616",
+            insertbackground=FG,
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=HAIRLINE,
+            highlightcolor=ACCENT,
+        )
+        e.insert(0, value)
+        e.bind("<Return>", lambda _e: self._on_run())
+        e.pack(side="left")
+        return e
+
+    def _on_run(self) -> None:
+        """Read the seed fields, rebuild the simulation, reset and redraw."""
+        try:
+            params = FoundingParams(
+                population=int(self.entries["population"].get()),
+                skill_variance=float(self.entries["skill_variance"].get()),
+                risk_tolerance=float(self.entries["risk_tolerance"].get()),
+                punishment=float(self.entries["punishment"].get()),
+            )
+            seed = int(self.seed_entry.get())
+        except ValueError as exc:
+            self.status.config(fg=COLOR_IMPRISONED, text=f"bad parameter: {exc}")
+            return
+
+        # Reuse the existing economy/punishment knobs; only the seeds change.
+        self.sim = Simulation(
+            params,
+            seed=seed,
+            economy=self.sim.economy,
+            punishment=self.sim.punishment,
+        )
+        self._gen_positions()
+        self.playing = False
+        self.status.config(fg=DIM)
+        self._render_frame()
 
     # --- rendering ---
 

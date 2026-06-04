@@ -11,8 +11,8 @@ from agents import AgentPool, Role, State  # noqa: E402
 from economy import EconomyConfig, attempt_builds, earn_income  # noqa: E402
 
 # Build success depends on skill; disable random failure for deterministic tests.
-NEVER_FAIL = dict(max_fail_rate=0.0)
-ALWAYS_FAIL = dict(max_fail_rate=1.0)
+NEVER_FAIL = dict(base_fail_rate=0.0, max_fail_rate=0.0)
+ALWAYS_FAIL = dict(base_fail_rate=1.0, max_fail_rate=0.0)
 
 
 def _pool(roles, *, wealth=100.0, has_house=False, state=State.ACTIVE, skill=0.5):
@@ -60,6 +60,15 @@ def test_failed_build_does_not_transact_and_reports_pair():
     assert pool.wealth[1] == 200.0  # no payment on failure
     assert list(info["failed_builders"]) == [0]
     assert list(info["failed_residents"]) == [1]
+
+
+def test_skilled_builder_still_fails_at_the_floor():
+    # Max skill removes the skill-dependent term, but the floor remains.
+    pool = _pool([Role.BUILDER, Role.RESIDENT], wealth=200.0, skill=1.0)
+    cfg = EconomyConfig(base_fail_rate=1.0, max_fail_rate=0.0)
+    info = attempt_builds(pool, cfg, np.random.default_rng(0))
+    assert info["houses_built"] == 0
+    assert list(info["failed_builders"]) == [0]
 
 
 def test_resident_who_cannot_afford_is_skipped():

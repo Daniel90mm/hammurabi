@@ -24,8 +24,10 @@ class EconomyConfig:
 
     base_income: float = 10.0  # flat wage paid to every active agent per tick
     house_price: float = 100.0  # fixed cost of one house (step 5 makes it emerge)
-    max_fail_rate: float = 0.10  # failure prob for a zero-skill builder; scales
-    #                              with (1 - skill), so skill 1.0 never fails
+    base_fail_rate: float = 0.01  # irreducible failure floor: even a perfectly
+    #                               skilled builder fails this often (bad luck)
+    max_fail_rate: float = 0.10  # skill-dependent failure on top of the floor;
+    #                              scales with (1 - skill)
 
 
 def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
@@ -48,7 +50,9 @@ def attempt_builds(
     most one house this tick, paired randomly with a houseless, paying resident.
 
     Each pair then succeeds or fails based on the builder's skill
-    (``fail_prob = (1 - skill) * max_fail_rate``). On **success** the resident
+    (``fail_prob = base_fail_rate + (1 - skill) * max_fail_rate``, so even a
+    perfectly skilled builder fails at the irreducible floor). On **success** the
+    resident
     pays the fixed price to the builder (wealth-conserving) and is housed. On
     **failure** nothing is transacted -- the (builder, resident) pair is returned
     so the punishment layer can apply consequences; the resident stays houseless
@@ -81,7 +85,12 @@ def attempt_builds(
     pair_builders = builders[:n_builds]
     pair_residents = residents[:n_builds]
 
-    fail_prob = (1.0 - pool.skill[pair_builders]) * config.max_fail_rate
+    fail_prob = np.clip(
+        config.base_fail_rate
+        + (1.0 - pool.skill[pair_builders]) * config.max_fail_rate,
+        0.0,
+        1.0,
+    )
     failed = rng.random(n_builds) < fail_prob
     succeeded = ~failed
 
