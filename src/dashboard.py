@@ -31,6 +31,7 @@ import numpy as np
 from render import (
     ACCENT,
     BG,
+    COLOR_IMPRISONED,
     DIM,
     ENTRY_BG,
     FG,
@@ -50,6 +51,53 @@ FONT_TITLE = ("monospace", 13, "bold")
 
 MAP_PX = 520  # initial map canvas size; it expands to fill the window
 MAX_DRAW = 4000  # cap on agents drawn per frame (subsampled if exceeded)
+
+# Short, non-load-bearing explainers for the seed fields (shown on ⓘ hover).
+PARAM_HELP = {
+    "population": "Population (N): number of agents.  range 100–100,000",
+    "skill_variance": "Skill variance (σ): spread of builder competence.  range 0.01–0.5",
+    "risk_tolerance": "Risk tolerance (ρ): willingness to enter the dangerous\n"
+    "building trade. Higher → more builders.  range 0.1–0.9",
+    "punishment": "Punishment regime (P): consequence for a fatal build.\n"
+    "0 = death (Hammurabi)   0.5 = prison   1 = fine.  range 0.0–1.0",
+}
+
+
+class Tooltip:
+    """A minimal flat hover tooltip. Appears instantly, no animation."""
+
+    def __init__(self, widget: tk.Widget, text: str) -> None:
+        self.widget = widget
+        self.text = text
+        self.tip: tk.Toplevel | None = None
+        widget.bind("<Enter>", self._show)
+        widget.bind("<Leave>", self._hide)
+
+    def _show(self, _evt=None) -> None:
+        if self.tip is not None:
+            return
+        x = self.widget.winfo_rootx()
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+        self.tip = tk.Toplevel(self.widget)
+        self.tip.wm_overrideredirect(True)  # no title bar / border
+        self.tip.wm_geometry(f"+{x}+{y}")
+        tk.Label(
+            self.tip,
+            text=self.text,
+            font=FONT,
+            fg=FG,
+            bg=ENTRY_BG,
+            justify="left",
+            padx=8,
+            pady=5,
+            highlightthickness=1,
+            highlightbackground=ACCENT,
+        ).pack()
+
+    def _hide(self, _evt=None) -> None:
+        if self.tip is not None:
+            self.tip.destroy()
+            self.tip = None
 
 
 def make_positions(sim: Simulation):
@@ -114,9 +162,13 @@ class Dashboard:
             bg=BG,
             highlightthickness=0,
             bd=0,
+            takefocus=1,
         )
         self.canvas.pack(fill="both", expand=True)
         self.canvas.bind("<Configure>", lambda _e: self._draw_map())
+        # Clicking the map (or its title) pulls focus out of the seed fields so
+        # the keyboard controls the simulation instead of typing into a field.
+        self.canvas.bind("<Button-1>", lambda _e: self.canvas.focus_set())
 
         # right: stats dashboard (the main focus)
         right = tk.Frame(root, bg=BG)
@@ -162,8 +214,11 @@ class Dashboard:
         p = self.sim.params
         for key, label, fmt in self._FIELDS:
             tk.Label(bar, text=label, font=FONT, fg=DIM, bg=BG).pack(
-                side="left", padx=(12, 2)
+                side="left", padx=(12, 1)
             )
+            info = tk.Label(bar, text="ⓘ", font=FONT, fg=DIM, bg=BG, cursor="question_arrow")
+            info.pack(side="left", padx=(0, 2))
+            Tooltip(info, PARAM_HELP[key])
             e = self._entry(bar, fmt(p), width=6)
             self.entries[key] = e
 
@@ -184,6 +239,7 @@ class Dashboard:
         ).pack(side="left", padx=(14, 0))
 
     def _entry(self, parent: tk.Widget, value: str, width: int) -> tk.Entry:
+        vcmd = (self.root.register(self._is_number), "%P")
         e = tk.Entry(
             parent,
             width=width,
@@ -195,11 +251,24 @@ class Dashboard:
             highlightthickness=1,
             highlightbackground=HAIRLINE,
             highlightcolor=ACCENT,
+            validate="key",
+            validatecommand=vcmd,
         )
         e.insert(0, value)
         e.bind("<Return>", lambda _e: self._on_run())
         e.pack(side="left")
         return e
+
+    @staticmethod
+    def _is_number(proposed: str) -> bool:
+        """Allow only numeric input in seed fields (blocks '+', letters, spaces)."""
+        if proposed in ("", "-", ".", "-."):
+            return True  # permit partial entry
+        try:
+            float(proposed)
+            return True
+        except ValueError:
+            return False
 
     def _on_run(self) -> None:
         """Read the seed fields, rebuild the simulation, reset and redraw."""
@@ -215,16 +284,18 @@ class Dashboard:
             self.status.config(fg=COLOR_IMPRISONED, text=f"bad parameter: {exc}")
             return
 
-        # Reuse the existing economy/punishment knobs; only the seeds change.
+        # Reuse the existing model knobs; only the seeds change.
         self.sim = Simulation(
             params,
             seed=seed,
             economy=self.sim.economy,
             punishment=self.sim.punishment,
+            profession=self.sim.profession,
         )
         self._gen_positions()
         self.playing = False
         self.status.config(fg=DIM)
+        self.canvas.focus_set()  # move focus out of the entry so keys control the sim
         self._render_frame()
 
     # --- rendering (colour + stats formatting come from render.py) ---
@@ -269,6 +340,8 @@ class Dashboard:
         The live Tk window can't be screen-grabbed under Wayland, so we redraw
         the same frame to an image from simulation state instead.
         """
+        if self._editing():
+            return
         path = f"hammurabi_t{self.sim.tick_count}_seed{self.sim.seed}.png"
         save_screenshot(self.sim, path, self.pos_x, self.pos_y, self.draw_idx)
         self.status.config(fg=ACCENT, text=f"saved snapshot -> {path}")
@@ -284,19 +357,32 @@ class Dashboard:
             self._advance()
         self.root.after(self.tick_ms, self._loop)
 
+    def _editing(self) -> bool:
+        """True while a seed field has keyboard focus -- controls stand down so
+        the user can type (and keys don't double as sim commands)."""
+        return isinstance(self.root.focus_get(), tk.Entry)
+
     def _toggle_play(self, _evt=None) -> None:
+        if self._editing():
+            return
         self.playing = not self.playing
         self._render_frame()
 
     def _step(self, _evt=None) -> None:
+        if self._editing():
+            return
         self.playing = False
         self._advance()
 
     def _faster(self, _evt=None) -> None:
+        if self._editing():
+            return
         self.tick_ms = max(20, self.tick_ms - 40)
         self._render_frame()
 
     def _slower(self, _evt=None) -> None:
+        if self._editing():
+            return
         self.tick_ms = min(2000, self.tick_ms + 40)
         self._render_frame()
 
@@ -311,11 +397,17 @@ class Dashboard:
         self.root.bind("<minus>", self._slower)
         self.root.bind("<KP_Subtract>", self._slower)
         self.root.bind("<p>", self._snapshot)
-        self.root.bind("<q>", lambda _e: self.root.destroy())
-        self.root.focus_force()  # ensure key events reach the window
+        self.root.bind("<q>", self._quit)
+        self.root.focus_force()
+        self.canvas.focus_set()  # controls active by default; click a field to edit
         self._render_frame()
         self._loop()
         self.root.mainloop()
+
+    def _quit(self, _evt=None) -> None:
+        if self._editing():
+            return
+        self.root.destroy()
 
 
 def _parse_args(argv=None) -> argparse.Namespace:
