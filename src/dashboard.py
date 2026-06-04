@@ -283,14 +283,17 @@ class Dashboard:
             resolution=0.001,
             orient="horizontal",
             showvalue=False,
-            length=120,
-            width=10,
-            bg=BG,
-            troughcolor=ENTRY_BG,
-            activebackground=ACCENT,
-            highlightthickness=0,
+            length=130,
+            width=14,
+            sliderlength=18,
+            bg=ACCENT,  # the draggable thumb (follows bg) -- bright so it's visible
+            troughcolor="#30343c",  # the groove, clearly lighter than the black bg
+            activebackground=FG,
+            highlightthickness=1,
+            highlightbackground=HAIRLINE,
             bd=0,
             sliderrelief="flat",
+            troughrelief="flat",
             command=lambda t, k=key: self._on_slider(k, float(t)),
         )
         slider.set(min(1.0, max(0.0, to_norm(current_value))))
