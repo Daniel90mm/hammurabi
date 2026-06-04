@@ -52,6 +52,8 @@ STAT_LABELS = {
     "cum_failures": "build failures",
     "cum_resident_deaths": "occupant deaths",
     "cum_builder_deaths": "builder deaths",
+    "cum_to_builder": "→ builder",
+    "cum_to_resident": "→ resident",
 }
 
 LEGEND = (

@@ -16,6 +16,7 @@ import numpy as np
 
 from agents import AgentPool
 from economy import EconomyConfig, attempt_builds, earn_income
+from profession import ProfessionConfig, switch_professions
 from punishment import PunishmentConfig, apply_failures, tick_prisons
 
 
@@ -56,11 +57,13 @@ class Simulation:
         seed: int = 0,
         economy: EconomyConfig | None = None,
         punishment: PunishmentConfig | None = None,
+        profession: ProfessionConfig | None = None,
     ) -> None:
         self.params = params
         self.seed = seed
         self.economy = economy or EconomyConfig()
         self.punishment = punishment or PunishmentConfig()
+        self.profession = profession or ProfessionConfig()
         self.rng = np.random.default_rng(seed)
         self.tick_count = 0
         self.agents = AgentPool.create(
@@ -75,6 +78,8 @@ class Simulation:
             "builder_deaths": 0,
             "imprisonments": 0,
             "fines": 0,
+            "to_builder": 0,
+            "to_resident": 0,
         }
 
     def tick(self) -> None:
@@ -89,7 +94,7 @@ class Simulation:
                  build succeeds or fails based on builder skill
             5. On failure: occupant harm roll + punishment (P)        [step 3]
             (prisons advance; sentences end and builders return)      [step 3]
-            6. Agents evaluate professions and some switch roles      [step 4]
+            6. Agents evaluate professions and some switch roles (ρ)   [step 4]
             7. Houses age and decay                                   [step 7]
             8. Statistics logged                                      [step 7]
         """
@@ -108,8 +113,14 @@ class Simulation:
             result["failed_residents"],
         )
 
+        switches = switch_professions(
+            self.agents, self.profession, self.params.risk_tolerance, self.rng
+        )
+
         self.totals["build_failures"] += int(result["failed_builders"].size)
         for key, val in consequences.items():
+            self.totals[key] += val
+        for key, val in switches.items():
             self.totals[key] += val
 
         self.tick_count += 1
@@ -136,4 +147,6 @@ class Simulation:
             "cum_failures": self.totals["build_failures"],
             "cum_resident_deaths": self.totals["resident_deaths"],
             "cum_builder_deaths": self.totals["builder_deaths"],
+            "cum_to_builder": self.totals["to_builder"],
+            "cum_to_resident": self.totals["to_resident"],
         }

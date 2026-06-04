@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-04 - Step 4 (profession switching) wakes up ρ
+
+Type: Finding
+
+Agents now switch roles by comparing mean wealth of the two roles: if builders are richer, residents enter building gated by risk tolerance ρ; if residents are richer, builders flee gated by (1-ρ). Fled builders lose their house and re-enter the market. ρ now strongly drives the profession ratio: at fixed seed, ρ=0.1 -> ~637 builders/352 residents, ρ=0.9 -> ~934/55. Two caveats: (1) profitability proxy is cumulative mean wealth, which is dominated by the early one-time building windfall, so once everyone is housed there is no real income difference and switching chases a stale signal -- this will be much more meaningful once housing decay (step 7) sustains building demand and real per-tick income. (2) skill_variance is STILL ~inert; expect it to matter once selection + education let skill actually differentiate outcomes. Net so far: pop, P, and ρ all move outputs; σ does not yet.
+
 ## 2026-06-04 - Step 3 (failure + punishment) differentiates regimes
 
 Type: Finding
