@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-04 - Added housing decay (out of README's numbered order, on purpose)
+
+Type: Decision
+
+Implemented constant-hazard housing decay (EconomyConfig.house_decay_rate, default 0.02/tick): each tick a housed agent's house may wear out, sending them back into the market. Decay is in the README tick-loop spec ("7. Houses age and decay") but was missing from the numbered build order; I pulled it in before step 5 (pricing) because pricing is near-pointless without ongoing demand to respond to, and because the sim froze at ~tick 13 otherwise. Verified the freeze is gone: failures/imprisonment/building continue indefinitely and the housed count reaches a churn rather than a one-shot. This unblocks meaningful pricing (step 5) and live charts. Age/condition-based decay deferred until data demands it. Next: step 5 (emergent pricing), then the matplotlib chart panel (user chose embedded matplotlib).
+
 ## 2026-06-04 - Sim freezes ~tick 13 without decay; ratio equilibrium explained
 
 Type: Finding

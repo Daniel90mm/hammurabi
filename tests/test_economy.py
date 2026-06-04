@@ -8,7 +8,12 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from agents import AgentPool, Role, State  # noqa: E402
-from economy import EconomyConfig, attempt_builds, earn_income  # noqa: E402
+from economy import (  # noqa: E402
+    EconomyConfig,
+    attempt_builds,
+    decay_houses,
+    earn_income,
+)
 
 # Build success depends on skill; disable random failure for deterministic tests.
 NEVER_FAIL = dict(base_fail_rate=0.0, max_fail_rate=0.0)
@@ -84,6 +89,21 @@ def test_already_housed_resident_not_rebuilt():
     pool = _pool([Role.BUILDER, Role.RESIDENT], wealth=500.0, has_house=True)
     info = attempt_builds(pool, EconomyConfig(**NEVER_FAIL), np.random.default_rng(0))
     assert info["houses_built"] == 0
+
+
+def test_decay_sends_housed_residents_back_to_market():
+    pool = _pool([Role.RESIDENT, Role.RESIDENT], has_house=True)
+    # rate 1.0 -> every house wears out this tick
+    info = decay_houses(pool, EconomyConfig(house_decay_rate=1.0), np.random.default_rng(0))
+    assert info["houses_decayed"] == 2
+    assert not pool.has_house.any()
+
+
+def test_no_decay_when_rate_zero():
+    pool = _pool([Role.RESIDENT], has_house=True)
+    info = decay_houses(pool, EconomyConfig(house_decay_rate=0.0), np.random.default_rng(0))
+    assert info["houses_decayed"] == 0
+    assert pool.has_house.all()
 
 
 def test_builds_capped_by_scarcer_side():

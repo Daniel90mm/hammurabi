@@ -28,6 +28,8 @@ class EconomyConfig:
     #                               skilled builder fails this often (bad luck)
     max_fail_rate: float = 0.10  # skill-dependent failure on top of the floor;
     #                              scales with (1 - skill)
+    house_decay_rate: float = 0.02  # per-tick chance a house wears out and the
+    #                                 resident must rebuild (mean life ~1/rate ticks)
 
 
 def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
@@ -105,3 +107,21 @@ def attempt_builds(
         "failed_builders": pair_builders[failed],
         "failed_residents": pair_residents[failed],
     }
+
+
+def decay_houses(
+    pool: AgentPool, config: EconomyConfig, rng: np.random.Generator
+) -> dict[str, int]:
+    """Wear out houses: each housed agent's house decays with a constant hazard.
+
+    A decayed house sends its owner back into the housing market (has_house ->
+    False), renewing building demand so the economy does not freeze once
+    everyone is initially housed. Constant-hazard now; age/condition modelling is
+    a later refinement.
+    """
+    housed = np.flatnonzero(pool.has_house & pool.active_mask())
+    if housed.size == 0:
+        return {"houses_decayed": 0}
+    decayed = housed[rng.random(housed.size) < config.house_decay_rate]
+    pool.has_house[decayed] = False
+    return {"houses_decayed": int(decayed.size)}

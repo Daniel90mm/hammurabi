@@ -15,7 +15,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from agents import AgentPool
-from economy import EconomyConfig, attempt_builds, earn_income
+from economy import EconomyConfig, attempt_builds, decay_houses, earn_income
 from profession import ProfessionConfig, switch_professions
 from punishment import PunishmentConfig, apply_failures, tick_prisons
 
@@ -95,7 +95,7 @@ class Simulation:
             5. On failure: occupant harm roll + punishment (P)        [step 3]
             (prisons advance; sentences end and builders return)      [step 3]
             6. Agents evaluate professions and some switch roles (ρ)   [step 4]
-            7. Houses age and decay                                   [step 7]
+            7. Houses wear out; owners re-enter the housing market     [decay]
             8. Statistics logged                                      [step 7]
         """
         # Released prisoners rejoin the active pool before this tick's building.
@@ -116,6 +116,8 @@ class Simulation:
         switches = switch_professions(
             self.agents, self.profession, self.params.risk_tolerance, self.rng
         )
+
+        decay_houses(self.agents, self.economy, self.rng)
 
         self.totals["build_failures"] += int(result["failed_builders"].size)
         for key, val in consequences.items():
