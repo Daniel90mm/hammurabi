@@ -13,6 +13,7 @@ from economy import (  # noqa: E402
     attempt_builds,
     decay_houses,
     earn_income,
+    update_price,
 )
 
 # Build success depends on skill; disable random failure for deterministic tests.
@@ -114,6 +115,27 @@ def test_already_housed_resident_not_rebuilt():
     pool = _pool([Role.BUILDER, Role.RESIDENT], wealth=500.0, has_house=True)
     info = attempt_builds(pool, EconomyConfig(**NEVER_FAIL), np.random.default_rng(0))
     assert info["houses_built"] == 0
+
+
+def test_price_rises_when_demand_exceeds_supply():
+    cfg = EconomyConfig(price_adjust_speed=0.1)
+    assert update_price(100.0, demand=90, supply=10, config=cfg) > 100.0
+
+
+def test_price_falls_when_supply_exceeds_demand():
+    cfg = EconomyConfig(price_adjust_speed=0.1)
+    assert update_price(100.0, demand=10, supply=90, config=cfg) < 100.0
+
+
+def test_price_is_clamped_to_bounds():
+    cfg = EconomyConfig(price_adjust_speed=0.1, price_min=50.0, price_max=200.0)
+    assert update_price(1.0, demand=0, supply=100, config=cfg) == 50.0  # floor
+    assert update_price(1e9, demand=100, supply=0, config=cfg) == 200.0  # ceiling
+
+
+def test_price_stable_when_balanced():
+    cfg = EconomyConfig(price_adjust_speed=0.1)
+    assert update_price(100.0, demand=50, supply=50, config=cfg) == 100.0
 
 
 def test_decay_sends_housed_residents_back_to_market():

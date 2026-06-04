@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-05 - Step 5 pricing reveals a builder-glut / price-collapse failure
+
+Type: Finding
+
+Emergent pricing (update_price: price drifts on (demand-supply)/(demand+supply), clamped) works and is tested. But running it exposes a degenerate equilibrium: builders balloon to ~86% of the population, demand collapses, price pins to the floor (10), affordability ~0.02, and conversions are one-way (→builder hundreds, →resident 0). Root cause is NOT pricing -- it's that profession switching (step 4) compares CUMULATIVE mean wealth, which is dominated by the early building windfall and so permanently favors building even after current building income has collapsed to the floored price. With dynamic pricing in place, the honest fix is to switch on CURRENT/recent income (price x build-success), which would signal "building no longer pays" and self-correct the glut. This fix is demanded by a degenerate behavior (passes the complexity gate), and is the next model priority. Requires tracking per-tick income per agent (small) -- couples naturally with the per-tick history buffer needed for charts/validation.
+
 ## 2026-06-04 - Complexity gate: mechanisms need data, not plausibility
 
 Type: Decision

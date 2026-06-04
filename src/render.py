@@ -49,6 +49,8 @@ STAT_LABELS = {
     "dead": "dead",
     "housed": "housed residents",
     "mean_wealth": "mean wealth",
+    "house_price": "house price",
+    "affordability": "affordability (price/wealth)",
     "cum_failures": "build failures",
     "cum_resident_deaths": "occupant deaths",
     "cum_builder_deaths": "builder deaths",

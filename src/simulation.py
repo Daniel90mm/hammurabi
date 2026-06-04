@@ -14,8 +14,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from agents import AgentPool
-from economy import EconomyConfig, attempt_builds, decay_houses, earn_income
+from agents import AgentPool, Role
+from economy import (
+    EconomyConfig,
+    attempt_builds,
+    decay_houses,
+    earn_income,
+    update_price,
+)
 from profession import ProfessionConfig, switch_professions
 from punishment import PunishmentConfig, apply_failures, tick_prisons
 
@@ -66,6 +72,7 @@ class Simulation:
         self.profession = profession or ProfessionConfig()
         self.rng = np.random.default_rng(seed)
         self.tick_count = 0
+        self.price = self.economy.house_price  # emergent house price (step 5)
         self.agents = AgentPool.create(
             params.population,
             self.rng,
@@ -89,9 +96,10 @@ class Simulation:
         implemented (flat income + fixed-price building); the rest land in later
         build phases:
 
-            1. Agents earn income                                    [step 2]
-            2-4. Residents request houses; builders build; each       [step 2/3]
-                 build succeeds or fails based on builder skill
+            1. House price updates from supply/demand                 [step 5]
+            2. Agents earn income                                    [step 2]
+            3-4. Houseless agents request houses; builders build at    [step 2/3]
+                 the current price; each succeeds or fails on skill
             5. On failure: occupant harm roll + punishment (P)        [step 3]
             (prisons advance; sentences end and builders return)      [step 3]
             6. Agents evaluate professions and some switch roles (ρ)   [step 4]
@@ -101,8 +109,14 @@ class Simulation:
         # Released prisoners rejoin the active pool before this tick's building.
         tick_prisons(self.agents)
 
+        # Price emerges from market tightness: houseless demand vs builder supply.
+        active = self.agents.active_mask()
+        demand = int(np.count_nonzero(active & ~self.agents.has_house))
+        supply = int(np.count_nonzero(active & (self.agents.role == Role.BUILDER)))
+        self.price = update_price(self.price, demand, supply, self.economy)
+
         earn_income(self.agents, self.economy)
-        result = attempt_builds(self.agents, self.economy, self.rng)
+        result = attempt_builds(self.agents, self.economy, self.rng, self.price)
 
         consequences = apply_failures(
             self.agents,
@@ -146,6 +160,8 @@ class Simulation:
             "dead": self.agents.dead_count(),
             "housed": self.agents.housed_resident_count(),
             "mean_wealth": round(mean_wealth, 1),
+            "house_price": round(self.price, 1),
+            "affordability": round(self.price / mean_wealth, 2) if mean_wealth else 0.0,
             "cum_failures": self.totals["build_failures"],
             "cum_resident_deaths": self.totals["resident_deaths"],
             "cum_builder_deaths": self.totals["builder_deaths"],

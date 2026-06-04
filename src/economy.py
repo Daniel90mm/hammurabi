@@ -23,7 +23,11 @@ class EconomyConfig:
     parameters -- the four seeds live in FoundingParams."""
 
     base_income: float = 10.0  # flat wage paid to every active agent per tick
-    house_price: float = 100.0  # fixed cost of one house (step 5 makes it emerge)
+    house_price: float = 100.0  # *starting* price; it now emerges (see update_price)
+    price_adjust_speed: float = 0.10  # max fractional price move per tick (at the
+    #                                   extremes of demand/supply imbalance)
+    price_min: float = 10.0  # price floor
+    price_max: float = 10_000.0  # price ceiling (prevents runaway)
     base_fail_rate: float = 0.01  # irreducible failure floor: even a perfectly
     #                               skilled builder fails this often (bad luck)
     max_fail_rate: float = 0.10  # skill-dependent failure on top of the floor;
@@ -46,8 +50,30 @@ def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
     return {"wage_paid": config.base_income * int(np.count_nonzero(active))}
 
 
+def update_price(
+    price: float, demand: int, supply: int, config: EconomyConfig
+) -> float:
+    """Move the house price toward market balance (step 5: emergent pricing).
+
+    ``demand`` is the number of houseless agents; ``supply`` is the number of
+    available builders. The price drifts up when demand exceeds supply and down
+    when supply exceeds demand, by at most ``price_adjust_speed`` per tick, and
+    is clamped to [price_min, price_max].
+
+        excess = (demand - supply) / (demand + supply)   # in [-1, 1]
+        price *= 1 + price_adjust_speed * excess
+    """
+    total = demand + supply
+    excess = (demand - supply) / total if total else 0.0
+    new_price = price * (1.0 + config.price_adjust_speed * excess)
+    return float(np.clip(new_price, config.price_min, config.price_max))
+
+
 def attempt_builds(
-    pool: AgentPool, config: EconomyConfig, rng: np.random.Generator
+    pool: AgentPool,
+    config: EconomyConfig,
+    rng: np.random.Generator,
+    price: float | None = None,
 ) -> dict[str, object]:
     """Match builders to houseless occupants and attempt each build.
 
@@ -72,12 +98,14 @@ def attempt_builds(
      "failed_builders": np.ndarray[int],
      "failed_occupants": np.ndarray[int]}
     """
+    if price is None:
+        price = config.house_price
     empty = np.empty(0, dtype=np.int64)
     active = pool.active_mask()
 
     builders = np.flatnonzero(active & (pool.role == Role.BUILDER))
     occupants = np.flatnonzero(
-        active & ~pool.has_house & (pool.wealth >= config.house_price)
+        active & ~pool.has_house & (pool.wealth >= price)
     )
 
     n_builds = int(min(builders.size, occupants.size))
@@ -106,8 +134,8 @@ def attempt_builds(
 
     ok_builders = pair_builders[succeeded]
     ok_occupants = pair_occupants[succeeded]
-    pool.wealth[ok_occupants] -= config.house_price
-    pool.wealth[ok_builders] += config.house_price
+    pool.wealth[ok_occupants] -= price
+    pool.wealth[ok_builders] += price
     pool.has_house[ok_occupants] = True
     # The house inherits the builder's skill as its build quality (drives decay).
     pool.house_quality[ok_occupants] = pool.skill[ok_builders]
