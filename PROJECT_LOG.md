@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-05 - Income-based switching tames the builder glut
+
+Type: Correction
+
+Fixed the step-5 finding: profession switching now compares smoothed recent ROLE INCOME (builder = base wage + share of building revenue; resident = base wage) instead of lifetime wealth. The sim carries builder_income/resident_income EMAs (alpha 0.3). Result: builders plateau at ~71% and recede slightly rather than ballooning to 86%+ and climbing. Price still floors (real builder over-supply: supply = all builders >> decay-driven demand), but the system now sits at a stable equilibrium instead of a runaway spiral. Whether ~71% builders is realistic is a calibration question for the comparator, not a model bug.
+
 ## 2026-06-05 - Step 5 pricing reveals a builder-glut / price-collapse failure
 
 Type: Finding

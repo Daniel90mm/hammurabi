@@ -34,7 +34,10 @@ def _split(n_each, b_wealth, r_wealth):
 def test_residents_join_building_when_builders_richer():
     pool = _split(50, b_wealth=500.0, r_wealth=100.0)
     cfg = ProfessionConfig(base_switch_rate=1.0)  # everyone eligible switches
-    stats = switch_professions(pool, cfg, risk_tolerance=1.0, rng=np.random.default_rng(0))
+    stats = switch_professions(
+        pool, cfg, 1.0, builder_income=500.0, resident_income=100.0,
+        rng=np.random.default_rng(0),
+    )
     assert stats["to_builder"] == 50  # all residents switched
     assert stats["to_resident"] == 0
 
@@ -42,14 +45,20 @@ def test_residents_join_building_when_builders_richer():
 def test_risk_tolerance_zero_blocks_entry_to_building():
     pool = _split(50, b_wealth=500.0, r_wealth=100.0)
     cfg = ProfessionConfig(base_switch_rate=1.0)
-    stats = switch_professions(pool, cfg, risk_tolerance=0.0, rng=np.random.default_rng(0))
+    stats = switch_professions(
+        pool, cfg, 0.0, builder_income=500.0, resident_income=100.0,
+        rng=np.random.default_rng(0),
+    )
     assert stats["to_builder"] == 0  # nobody dares enter the dangerous trade
 
 
 def test_builders_flee_when_residents_richer_and_lose_house():
     pool = _split(50, b_wealth=100.0, r_wealth=500.0)
     cfg = ProfessionConfig(base_switch_rate=1.0)
-    stats = switch_professions(pool, cfg, risk_tolerance=0.0, rng=np.random.default_rng(0))
+    stats = switch_professions(
+        pool, cfg, 0.0, builder_income=100.0, resident_income=500.0,
+        rng=np.random.default_rng(0),
+    )
     # risk aversion (1 - rho) = 1.0 -> all builders flee
     assert stats["to_resident"] == 50
     # the fled builders (indices 0..49) are now residents and lost their houses,
@@ -60,14 +69,20 @@ def test_builders_flee_when_residents_richer_and_lose_house():
 
 
 def test_no_switch_within_threshold():
-    pool = _split(50, b_wealth=101.0, r_wealth=100.0)  # ~1% gap < 5% threshold
+    pool = _split(50, b_wealth=101.0, r_wealth=100.0)
     cfg = ProfessionConfig(base_switch_rate=1.0, gap_threshold=0.05)
-    stats = switch_professions(pool, cfg, risk_tolerance=1.0, rng=np.random.default_rng(0))
+    stats = switch_professions(
+        pool, cfg, 1.0, builder_income=101.0, resident_income=100.0,  # ~1% < 5%
+        rng=np.random.default_rng(0),
+    )
     assert stats == {"to_builder": 0, "to_resident": 0}
 
 
 def test_no_switch_when_a_role_is_empty():
     pool = _pool([Role.BUILDER, Role.BUILDER], [500.0, 500.0])
     cfg = ProfessionConfig(base_switch_rate=1.0)
-    stats = switch_professions(pool, cfg, risk_tolerance=1.0, rng=np.random.default_rng(0))
+    stats = switch_professions(
+        pool, cfg, 1.0, builder_income=500.0, resident_income=100.0,
+        rng=np.random.default_rng(0),
+    )
     assert stats == {"to_builder": 0, "to_resident": 0}

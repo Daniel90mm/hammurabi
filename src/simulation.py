@@ -73,6 +73,10 @@ class Simulation:
         self.rng = np.random.default_rng(seed)
         self.tick_count = 0
         self.price = self.economy.house_price  # emergent house price (step 5)
+        # Smoothed recent income per role -- the profitability signal that drives
+        # profession switching (income, not lifetime wealth).
+        self.builder_income = self.economy.base_income
+        self.resident_income = self.economy.base_income
         self.agents = AgentPool.create(
             params.population,
             self.rng,
@@ -127,8 +131,22 @@ class Simulation:
             result["failed_occupants"],
         )
 
+        # Update the smoothed role-income signal from this tick's earnings.
+        # A builder earns the base wage plus a share of building revenue; a
+        # resident earns only the base wage.
+        base = self.economy.base_income
+        builder_now = base + result["houses_built"] * self.price / max(supply, 1)
+        alpha = self.profession.income_ema_alpha
+        self.builder_income = (1 - alpha) * self.builder_income + alpha * builder_now
+        self.resident_income = (1 - alpha) * self.resident_income + alpha * base
+
         switches = switch_professions(
-            self.agents, self.profession, self.params.risk_tolerance, self.rng
+            self.agents,
+            self.profession,
+            self.params.risk_tolerance,
+            self.builder_income,
+            self.resident_income,
+            self.rng,
         )
 
         decay_houses(self.agents, self.economy, self.rng)

@@ -29,16 +29,27 @@ from agents import AgentPool, Role
 @dataclass(frozen=True)
 class ProfessionConfig:
     base_switch_rate: float = 0.05  # per-tick switch probability before rho gating
-    gap_threshold: float = 0.05  # min relative wealth gap before anyone switches
+    gap_threshold: float = 0.05  # min relative income gap before anyone switches
+    income_ema_alpha: float = 0.3  # smoothing for the role-income signal
 
 
 def switch_professions(
     pool: AgentPool,
     config: ProfessionConfig,
     risk_tolerance: float,
+    builder_income: float,
+    resident_income: float,
     rng: np.random.Generator,
 ) -> dict[str, int]:
-    """Move some agents between roles based on the wealth gap. Mutates ``pool``."""
+    """Move some agents between roles based on which role earns more *now*.
+
+    Uses recent role income (not lifetime wealth) as the profitability signal:
+    lifetime wealth is dominated by the early building windfall and permanently
+    favours building, which produces a degenerate builder glut once prices
+    collapse (see PROJECT_LOG). Income reflects current conditions, so when an
+    over-supply of builders drives building income down to ~the base wage, the
+    incentive to keep entering building disappears and the glut self-corrects.
+    """
     stats = {"to_builder": 0, "to_resident": 0}
     active = pool.active_mask()
     builders = active & (pool.role == Role.BUILDER)
@@ -46,17 +57,14 @@ def switch_professions(
     if not builders.any() or not residents.any():
         return stats  # need both roles present to compare
 
-    b_mean = float(pool.wealth[builders].mean())
-    r_mean = float(pool.wealth[residents].mean())
-
-    if b_mean > r_mean * (1.0 + config.gap_threshold):
+    if builder_income > resident_income * (1.0 + config.gap_threshold):
         # Building pays better: residents enter it, gated by risk tolerance.
         cand = np.flatnonzero(residents)
         p = config.base_switch_rate * risk_tolerance
         chosen = cand[rng.random(cand.size) < p]
         pool.role[chosen] = Role.BUILDER
         stats["to_builder"] = int(chosen.size)
-    elif r_mean > b_mean * (1.0 + config.gap_threshold):
+    elif resident_income > builder_income * (1.0 + config.gap_threshold):
         # Building pays worse: builders flee to safety, gated by risk aversion.
         cand = np.flatnonzero(builders)
         p = config.base_switch_rate * (1.0 - risk_tolerance)
