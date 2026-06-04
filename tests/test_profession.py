@@ -20,6 +20,7 @@ def _pool(roles, wealth):
         wealth=np.array(wealth, dtype=np.float64),
         has_house=np.ones(n, dtype=bool),
         prison_remaining=np.zeros(n, dtype=np.int32),
+        house_quality=np.full(n, 0.5, dtype=np.float64),
     )
 
 

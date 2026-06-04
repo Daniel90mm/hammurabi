@@ -28,8 +28,11 @@ class EconomyConfig:
     #                               skilled builder fails this often (bad luck)
     max_fail_rate: float = 0.10  # skill-dependent failure on top of the floor;
     #                              scales with (1 - skill)
-    house_decay_rate: float = 0.02  # per-tick chance a house wears out and the
-    #                                 resident must rebuild (mean life ~1/rate ticks)
+    house_decay_rate: float = 0.02  # base per-tick chance a house wears out and
+    #                                 the resident must rebuild (~1/rate ticks)
+    decay_skill_factor: float = 1.0  # how strongly build quality moves the decay
+    #   rate around the base: effective = base * (1 + factor*(0.5 - quality)).
+    #   quality 0 (shoddy) decays faster; quality 1 (expert) decays slower.
 
 
 def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
@@ -101,6 +104,8 @@ def attempt_builds(
     pool.wealth[ok_residents] -= config.house_price
     pool.wealth[ok_builders] += config.house_price
     pool.has_house[ok_residents] = True
+    # The house inherits the builder's skill as its build quality (drives decay).
+    pool.house_quality[ok_residents] = pool.skill[ok_builders]
 
     return {
         "houses_built": int(succeeded.sum()),
@@ -116,12 +121,22 @@ def decay_houses(
 
     A decayed house sends its owner back into the housing market (has_house ->
     False), renewing building demand so the economy does not freeze once
-    everyone is initially housed. Constant-hazard now; age/condition modelling is
-    a later refinement.
+    everyone is initially housed.
+
+    The hazard depends on build quality: a shoddy house (low-skill builder)
+    decays faster, a well-built one (high-skill builder) slower --
+    ``effective = base * (1 + factor*(0.5 - quality))`` clipped to [0, 1].
     """
     housed = np.flatnonzero(pool.has_house & pool.active_mask())
     if housed.size == 0:
         return {"houses_decayed": 0}
-    decayed = housed[rng.random(housed.size) < config.house_decay_rate]
+    eff_rate = np.clip(
+        config.house_decay_rate
+        * (1.0 + config.decay_skill_factor * (0.5 - pool.house_quality[housed])),
+        0.0,
+        1.0,
+    )
+    decayed = housed[rng.random(housed.size) < eff_rate]
     pool.has_house[decayed] = False
+    pool.house_quality[decayed] = 0.0
     return {"houses_decayed": int(decayed.size)}

@@ -47,6 +47,8 @@ class AgentPool:
         (meaningful for residents; builders do not request housing)
     prison_remaining : np.ndarray[int32] -- ticks left in prison
         (0 = not imprisoned; only nonzero while state == IMPRISONED)
+    house_quality : np.ndarray[float64] -- skill of the builder who built the
+        current house, in [0, 1] (0 when has_house is False). Drives decay rate.
     """
 
     role: np.ndarray
@@ -55,6 +57,7 @@ class AgentPool:
     wealth: np.ndarray
     has_house: np.ndarray
     prison_remaining: np.ndarray
+    house_quality: np.ndarray
 
     @property
     def n(self) -> int:
@@ -88,6 +91,7 @@ class AgentPool:
         wealth = np.full(n, float(initial_wealth), dtype=np.float64)
         has_house = np.zeros(n, dtype=bool)
         prison_remaining = np.zeros(n, dtype=np.int32)
+        house_quality = np.zeros(n, dtype=np.float64)
         return cls(
             role=role,
             state=state,
@@ -95,6 +99,7 @@ class AgentPool:
             wealth=wealth,
             has_house=has_house,
             prison_remaining=prison_remaining,
+            house_quality=house_quality,
         )
 
     # --- convenience masks (handy for stats and, later, the tick loop) ---

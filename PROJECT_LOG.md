@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-04 - Quality-based decay added; σ still aggregate-inert (needs selection)
+
+Type: Finding
+
+Houses now inherit their builder's skill as "build quality" (AgentPool.house_quality), and the decay hazard scales as base*(1+factor*(0.5-quality)) -- shoddy houses wear out faster, expert-built ones slower (unit-tested). However, varying σ alone still barely moves aggregate stats (e.g. ~161/159/153 cum failures at σ=0.05/0.25/0.45). Reason: with skill symmetric around mean 0.5, the faster decay of low-skill houses is offset by the slower decay of high-skill ones, so population means cancel. σ lives in the distribution (house-lifetime spread, builder wealth inequality), not the mean. To make σ move aggregates we need a selection/nonlinear mechanism -- e.g. Hammurabi (P=0) removing low-skill builders so the surviving builder pool skews skilled, or skill-correlated pricing. Noted as the likely next place σ becomes load-bearing.
+
 ## 2026-06-04 - Added housing decay (out of README's numbered order, on purpose)
 
 Type: Decision

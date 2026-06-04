@@ -27,6 +27,7 @@ def test_agent_colors_state_overrides_role():
         wealth=np.full(4, 100.0),
         has_house=np.zeros(4, bool),
         prison_remaining=np.zeros(4, np.int32),
+        house_quality=np.zeros(4, np.float64),
     )
     colors = list(agent_colors(pool))
     assert colors[0] == COLOR_BUILDER

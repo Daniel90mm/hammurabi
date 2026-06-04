@@ -29,6 +29,7 @@ def _pool(roles, *, wealth=100.0, has_house=False, state=State.ACTIVE, skill=0.5
         wealth=np.full(n, float(wealth), dtype=np.float64),
         has_house=np.full(n, has_house, dtype=bool),
         prison_remaining=np.zeros(n, dtype=np.int32),
+        house_quality=np.full(n, 0.5 if has_house else 0.0, dtype=np.float64),
     )
 
 
@@ -97,6 +98,24 @@ def test_decay_sends_housed_residents_back_to_market():
     info = decay_houses(pool, EconomyConfig(house_decay_rate=1.0), np.random.default_rng(0))
     assert info["houses_decayed"] == 2
     assert not pool.has_house.any()
+
+
+def test_shoddy_houses_decay_faster_than_well_built():
+    # Two cohorts of 2000 housed agents: one shoddy (q=0.0), one expert (q=1.0).
+    n = 4000
+    pool = AgentPool(
+        role=np.full(n, Role.RESIDENT, np.int8),
+        state=np.full(n, State.ACTIVE, np.int8),
+        skill=np.full(n, 0.5),
+        wealth=np.full(n, 100.0),
+        has_house=np.ones(n, bool),
+        prison_remaining=np.zeros(n, np.int32),
+        house_quality=np.concatenate([np.zeros(2000), np.ones(2000)]),
+    )
+    decay_houses(pool, EconomyConfig(house_decay_rate=0.2), np.random.default_rng(0))
+    shoddy_gone = int((~pool.has_house[:2000]).sum())
+    expert_gone = int((~pool.has_house[2000:]).sum())
+    assert shoddy_gone > expert_gone  # shoddy houses wear out faster
 
 
 def test_no_decay_when_rate_zero():
