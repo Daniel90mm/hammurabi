@@ -34,6 +34,18 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-04 - Complexity gate: mechanisms need data, not plausibility
+
+Type: Decision
+
+To stop unbounded interaction-modeling between the 4 seeds, adopt an explicit gate (Daniel's request; he wants me to enforce it). A mechanism earns code only if (a) it moves a metric we measure by a noticeable margin AND (b) we cannot reproduce a real-world target without it. "Plausible" is not the bar. Corollaries: every mechanism adds knobs and over-knobbed models overfit (lose falsifiability); model only first-order effects on the core loop (build→fail→punish→switch), reject Nth-order chains; until the comparator/validation harness exists, default to logging an interaction as a hypothesis rather than coding it. Practical consequence: the next priority should be the validation comparator (the data gate itself), not more mechanisms. Pricing (step 5) is the last skeleton piece.
+
+## 2026-06-04 - Hypotheses: punishment↔ρ and punishment↔builder skill (NOT coded)
+
+Type: Idea
+
+Logged per the complexity gate, deliberately not implemented. (1) Punishment regime could deter entry into building (couple P into the ρ-gated switch): plausible, first-order, but not needed yet. (2) "Harsh punishment makes builders build better" is the project's CENTRAL hypothesis, not a detail — so it must NOT be hardcoded (that would assume the conclusion and rig the experiment). The honest version is to distinguish the effort channel (same builder tries harder under threat -- a question-begging knob, reject) from the selection channel (bad builders die/flee under P=0, so the surviving pool skews skilled -- emergent from existing mechanics). Turn the intuition into a measurable prediction instead: under P=0, surviving-builder mean skill should rise and failure rate should fall over time. Measure it once we log per-tick history; do not impose it.
+
 ## 2026-06-04 - Quality-based decay added; σ still aggregate-inert (needs selection)
 
 Type: Finding
