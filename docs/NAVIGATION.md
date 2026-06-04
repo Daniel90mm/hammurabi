@@ -24,4 +24,5 @@ Where everything lives.
 | `CLAUDE.md` | Agent instructions (skill-agnostic port) |
 | `AGENTS.md` | Agent instructions (mirror of CLAUDE.md) |
 | `PROJECT_LOG.md` | Append-only record of ideas, decisions, findings, rejected concepts |
-| `DESIGN_PRINCIPLES.md` | Hard UI/visualization rules (ASCII dashboard, plots, web viewer) |
+| `DESIGN_PRINCIPLES.md` | Hard UI/visualization rules (GUI window: 2D map + stats dashboard) |
+| `pyproject.toml` | Project metadata, dependencies (numpy core; viz/calibration/dev extras), pytest config |

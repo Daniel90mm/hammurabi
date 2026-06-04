@@ -1,0 +1,31 @@
+[project]
+name = "hammurabi"
+version = "0.0.1"
+description = "Agent-based society simulator that derives civilizational outcomes from first principles."
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0",
+]
+
+[project.optional-dependencies]
+# Visualization and analysis — pulled in as the project grows past the core engine.
+viz = [
+    "matplotlib>=3.8",
+]
+# Auto-calibration optimizer (README simulation mode).
+calibration = [
+    "scipy>=1.11",
+]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
