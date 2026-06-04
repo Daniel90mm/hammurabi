@@ -10,11 +10,13 @@ Every run is reproducible from (FoundingParams, seed).
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 
 import numpy as np
 
 from agents import AgentPool, Role
+from metrics import gini
 from economy import (
     EconomyConfig,
     attempt_builds,
@@ -92,6 +94,10 @@ class Simulation:
             "to_builder": 0,
             "to_resident": 0,
         }
+        # Per-tick history for charts and validation (bounded so long runs don't
+        # grow without limit). Seed it with the initial (tick 0) snapshot.
+        self.history: deque[dict] = deque(maxlen=10_000)
+        self.history.append(self.summary())
 
     def tick(self) -> None:
         """Advance the simulation by one tick.
@@ -158,6 +164,7 @@ class Simulation:
             self.totals[key] += val
 
         self.tick_count += 1
+        self.history.append(self.summary())
 
     def run(self, n_ticks: int) -> None:
         """Advance ``n_ticks`` ticks."""
@@ -167,9 +174,8 @@ class Simulation:
     def summary(self) -> dict[str, object]:
         """A snapshot of headline numbers -- the seed of the future stats panel."""
         active = self.agents.active_mask()
-        mean_wealth = (
-            float(self.agents.wealth[active].mean()) if active.any() else 0.0
-        )
+        active_wealth = self.agents.wealth[active]
+        mean_wealth = float(active_wealth.mean()) if active.any() else 0.0
         return {
             "tick": self.tick_count,
             "alive": self.agents.alive_count(),
@@ -178,6 +184,7 @@ class Simulation:
             "dead": self.agents.dead_count(),
             "housed": self.agents.housed_resident_count(),
             "mean_wealth": round(mean_wealth, 1),
+            "gini": round(gini(active_wealth), 3),
             "house_price": round(self.price, 1),
             "affordability": round(self.price / mean_wealth, 2) if mean_wealth else 0.0,
             "cum_failures": self.totals["build_failures"],
