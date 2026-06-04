@@ -10,6 +10,7 @@ dependencies = [
 [project.optional-dependencies]
 # Visualization and analysis — pulled in as the project grows past the core engine.
 viz = [
+    "pillow>=10.0",
     "matplotlib>=3.8",
 ]
 # Auto-calibration optimizer (README simulation mode).

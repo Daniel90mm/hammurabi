@@ -28,44 +28,46 @@ import tkinter as tk
 
 import numpy as np
 
-from agents import Role, State
+from render import (
+    ACCENT,
+    BG,
+    DIM,
+    ENTRY_BG,
+    FG,
+    HAIRLINE,
+    LEGEND,
+    PIXEL,
+    agent_colors,
+    save_screenshot,
+    stats_lines,
+)
 from simulation import FoundingParams, Simulation
 
-# --- palette (flat, terminal-like, high contrast) ---
-BG = "#0a0a0a"
-FG = "#e6e6e6"
-DIM = "#6a6a6a"
-ACCENT = "#5fd7ff"
-HAIRLINE = "#2a2a2a"
-
-COLOR_BUILDER = "#5fd7ff"  # cyan
-COLOR_RESIDENT = "#e6c84f"  # amber
-COLOR_IMPRISONED = "#ff5f5f"  # red
-COLOR_DEAD = "#3a3a3a"  # dim grey
-
+# Tk-specific presentation (palette/colour logic live in render.py).
 FONT = ("monospace", 11)
 FONT_BOLD = ("monospace", 11, "bold")
 FONT_TITLE = ("monospace", 13, "bold")
 
-MAP_PX = 520  # map canvas is square, MAP_PX x MAP_PX
-STATS_W = 340
-PIXEL = 4  # agent dot size in px
+MAP_PX = 520  # initial map canvas size; it expands to fill the window
 MAX_DRAW = 4000  # cap on agents drawn per frame (subsampled if exceeded)
 
-# Pretty names for known summary keys; unknown keys fall back to the raw key.
-STAT_LABELS = {
-    "tick": "tick",
-    "alive": "alive",
-    "builders": "builders",
-    "residents": "residents",
-    "imprisoned": "imprisoned",
-    "dead": "dead",
-    "housed": "housed residents",
-    "mean_wealth": "mean wealth",
-    "cum_failures": "build failures",
-    "cum_resident_deaths": "occupant deaths",
-    "cum_builder_deaths": "builder deaths",
-}
+
+def make_positions(sim: Simulation):
+    """Cosmetic (x, y) positions + draw indices for a sim's population.
+
+    Positions live in the visualization layer, not the model -- the sim doesn't
+    know where agents are (cosmetic-first decision). Seeded off the sim seed so
+    the layout is reproducible alongside the run; subsampled past MAX_DRAW.
+    """
+    n = sim.agents.n
+    rng = np.random.default_rng(sim.seed + 1)
+    pos_x = rng.random(n)
+    pos_y = rng.random(n)
+    if n > MAX_DRAW:
+        draw_idx = rng.choice(n, size=MAX_DRAW, replace=False)
+    else:
+        draw_idx = np.arange(n)
+    return pos_x, pos_y, draw_idx
 
 
 class Dashboard:
@@ -79,21 +81,7 @@ class Dashboard:
         self._build_widgets()
 
     def _gen_positions(self) -> None:
-        """(Re)generate cosmetic agent positions for the current population.
-
-        Positions live here, not in the model -- the sim doesn't know where
-        agents are (cosmetic-first decision). Seeded off the sim seed so the
-        layout is reproducible alongside the run.
-        """
-        n = self.sim.agents.n
-        rng = np.random.default_rng(self.sim.seed + 1)
-        self.pos_x = rng.random(n)
-        self.pos_y = rng.random(n)
-        # Subsample indices for drawing if the population is large.
-        if n > MAX_DRAW:
-            self.draw_idx = rng.choice(n, size=MAX_DRAW, replace=False)
-        else:
-            self.draw_idx = np.arange(n)
+        self.pos_x, self.pos_y, self.draw_idx = make_positions(self.sim)
 
     # --- widget construction ---
 
@@ -149,12 +137,7 @@ class Dashboard:
         # legend -- one colour-matched chip per agent category
         legend = tk.Frame(right, bg=BG)
         legend.pack(anchor="nw", pady=(8, 0))
-        for name, color in (
-            ("builder", COLOR_BUILDER),
-            ("resident", COLOR_RESIDENT),
-            ("imprisoned", COLOR_IMPRISONED),
-            ("dead", COLOR_DEAD),
-        ):
+        for name, color in LEGEND:
             tk.Label(
                 legend, text=f"■ {name}", font=FONT, fg=color, bg=BG
             ).pack(side="left", padx=(0, 14))
@@ -206,7 +189,7 @@ class Dashboard:
             width=width,
             font=FONT,
             fg=FG,
-            bg="#161616",
+            bg=ENTRY_BG,
             insertbackground=FG,
             relief="flat",
             highlightthickness=1,
@@ -244,15 +227,7 @@ class Dashboard:
         self.status.config(fg=DIM)
         self._render_frame()
 
-    # --- rendering ---
-
-    def _agent_colors(self) -> np.ndarray:
-        """Colour per agent: state takes priority over role."""
-        a = self.sim.agents
-        colors = np.where(a.role == Role.BUILDER, COLOR_BUILDER, COLOR_RESIDENT)
-        colors = np.where(a.state == State.IMPRISONED, COLOR_IMPRISONED, colors)
-        colors = np.where(a.state == State.DEAD, COLOR_DEAD, colors)
-        return colors
+    # --- rendering (colour + stats formatting come from render.py) ---
 
     def _draw_map(self) -> None:
         c = self.canvas
@@ -266,7 +241,7 @@ class Dashboard:
         # hairline border (sharp, 1px)
         c.create_rectangle(0, 0, w - 1, h - 1, outline=HAIRLINE)
 
-        colors = self._agent_colors()
+        colors = agent_colors(self.sim.agents)
         for i in self.draw_idx:
             x = self.pos_x[i] * (w - PIXEL)
             y = self.pos_y[i] * (h - PIXEL)
@@ -275,38 +250,28 @@ class Dashboard:
             )
 
     def _draw_stats(self) -> None:
-        summary = self.sim.summary()
-        p = self.sim.params
-        lines = [
-            f"seed pop={p.population}  σ={p.skill_variance}",
-            f"ρ={p.risk_tolerance}  P={p.punishment}  seed={self.sim.seed}",
-            "",
-        ]
-        width = max(len(STAT_LABELS.get(k, k)) for k in summary)
-        active_roles = summary["builders"] + summary["residents"]
-
-        def pct(x: float, denom: float) -> str:
-            return f"{100 * x / denom:.1f}%" if denom else "—"
-
-        for key, val in summary.items():
-            label = STAT_LABELS.get(key, key)
-            if key in ("builders", "residents"):
-                row = f"{label:<{width}}  {val:>6}  ({pct(val, active_roles)})"
-            elif key == "housed":
-                row = f"{label:<{width}}  {val:>6}  ({pct(val, summary['residents'])})"
-            else:
-                row = f"{label:<{width}}  {val}"
-            lines.append(row)
-        self.stats.config(text="\n".join(lines))
+        self.stats.config(text="\n".join(stats_lines(self.sim)))
 
     def _render_frame(self) -> None:
         self._draw_map()
         self._draw_stats()
         state = "▶ playing" if self.playing else "❚❚ paused"
         self.status.config(
+            fg=DIM,
             text=f"{state}   tick {self.sim.tick_count}   "
-            f"[space] play/pause   [s] step   [+/-] speed ({self.tick_ms}ms)   [q] quit"
+            f"[space] play/pause   [s] step   [+/-] speed ({self.tick_ms}ms)   "
+            f"[p] snapshot   [q] quit",
         )
+
+    def _snapshot(self, _evt=None) -> None:
+        """Save a PNG of the current frame via the offscreen renderer.
+
+        The live Tk window can't be screen-grabbed under Wayland, so we redraw
+        the same frame to an image from simulation state instead.
+        """
+        path = f"hammurabi_t{self.sim.tick_count}_seed{self.sim.seed}.png"
+        save_screenshot(self.sim, path, self.pos_x, self.pos_y, self.draw_idx)
+        self.status.config(fg=ACCENT, text=f"saved snapshot -> {path}")
 
     # --- loop / controls ---
 
@@ -345,6 +310,7 @@ class Dashboard:
         self.root.bind("<KP_Add>", self._faster)
         self.root.bind("<minus>", self._slower)
         self.root.bind("<KP_Subtract>", self._slower)
+        self.root.bind("<p>", self._snapshot)
         self.root.bind("<q>", lambda _e: self.root.destroy())
         self.root.focus_force()  # ensure key events reach the window
         self._render_frame()
@@ -360,6 +326,17 @@ def _parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--punishment", type=float, default=0.5)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--tick-ms", type=int, default=200)
+    ap.add_argument(
+        "--screenshot",
+        metavar="PATH",
+        help="render a frame to PATH and exit (no GUI); use with --ticks",
+    )
+    ap.add_argument(
+        "--ticks",
+        type=int,
+        default=0,
+        help="ticks to advance before --screenshot",
+    )
     return ap.parse_args(argv)
 
 
@@ -372,6 +349,15 @@ def main(argv=None) -> int:
         punishment=args.punishment,
     )
     sim = Simulation(params, seed=args.seed)
+
+    if args.screenshot:
+        # Headless render -- no Tk, works regardless of the compositor.
+        sim.run(args.ticks)
+        pos_x, pos_y, draw_idx = make_positions(sim)
+        save_screenshot(sim, args.screenshot, pos_x, pos_y, draw_idx)
+        print(f"saved {args.screenshot} at tick {sim.tick_count}")
+        return 0
+
     Dashboard(sim, tick_ms=args.tick_ms).run()
     return 0
 
