@@ -11,7 +11,8 @@ Where everything lives.
 | `tests/smoke/` | Smoke scripts for simulation runs and exploratory mechanics |
 | `docs/` | Human-written reference docs (mechanics, economy, punishment, etc.) |
 | `data/` | Real-world benchmark data (country statistics) |
-| `scripts/` | Automation utilities |
+| `scripts/` | Automation utilities (`hammurabi` launcher, `install-desktop.sh`, `make_icon.py`, doc sync) |
+| `assets/` | Generated app assets (icon) |
 | `consults/` | Consult documents (LLM-to-LLM, written when stuck) |
 | `handoffs/` | Session handoff documents |
 | `runs/` | Simulation output (gitignored) |

@@ -23,6 +23,8 @@
 !tests/**
 !data/
 !data/**
+!assets/
+!assets/**
 !handoffs/
 !handoffs/**
 !consults/
