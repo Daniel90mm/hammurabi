@@ -180,10 +180,15 @@ class Dashboard:
 
         root = tk.Frame(self.root, bg=BG)
         root.pack(fill="both", expand=True, padx=8, pady=8)
+        # Equal-width columns so the map gets a fair half of the window instead
+        # of being squeezed into a narrow strip by the wider stats/charts side.
+        root.columnconfigure(0, weight=1, uniform="cols")
+        root.columnconfigure(1, weight=1, uniform="cols")
+        root.rowconfigure(0, weight=1)
 
-        # left: city map -- expands to fill available space
+        # left: city map -- expands to fill its column
         left = tk.Frame(root, bg=BG)
-        left.pack(side="left", fill="both", expand=True)
+        left.grid(row=0, column=0, sticky="nsew")
         tk.Label(left, text="CITY — HAMMURABI", font=FONT_TITLE, fg=ACCENT, bg=BG).pack(
             anchor="w"
         )
@@ -204,7 +209,7 @@ class Dashboard:
 
         # right: stats dashboard (the main focus)
         right = tk.Frame(root, bg=BG)
-        right.pack(side="left", fill="both", expand=True, padx=(12, 0))
+        right.grid(row=0, column=1, sticky="nsew", padx=(12, 0))
         tk.Label(right, text="STATISTICS", font=FONT_TITLE, fg=ACCENT, bg=BG).pack(
             anchor="w"
         )
@@ -266,6 +271,20 @@ class Dashboard:
             padx=10,
             command=self._on_run,
         ).pack(side="left", padx=(12, 0))
+
+        tk.Button(
+            bar,
+            text="↻ Restart",
+            font=FONT,
+            fg=FG,
+            bg=ENTRY_BG,
+            activebackground=HAIRLINE,
+            activeforeground=FG,
+            relief="flat",
+            bd=0,
+            padx=10,
+            command=self._on_restart,
+        ).pack(side="left", padx=(6, 0))
 
     def _build_slider(self, bar, key, label, to_real, to_norm, fmt, current_value):
         """One labelled 0-1 slider with a live real-value readout and ⓘ help."""
@@ -342,7 +361,7 @@ class Dashboard:
             return False
 
     def _on_run(self) -> None:
-        """Read the seed sliders, rebuild the simulation, start and redraw."""
+        """Read the seed sliders, build a NEW simulation, start and redraw."""
         def real(key):
             return PARAM_NORM[key][1](self.sliders[key].get())
 
@@ -357,7 +376,14 @@ class Dashboard:
         except ValueError as exc:
             self.status.config(fg=COLOR_IMPRISONED, text=f"bad parameter: {exc}")
             return
+        self._launch(params, seed)
 
+    def _on_restart(self) -> None:
+        """Re-run the CURRENT sim from tick 0 (same params + seed), ignoring any
+        unapplied slider changes."""
+        self._launch(self.sim.params, self.sim.seed)
+
+    def _launch(self, params: FoundingParams, seed: int) -> None:
         # Reuse the existing model knobs; only the seeds change.
         self.sim = Simulation(
             params,
@@ -367,7 +393,7 @@ class Dashboard:
             profession=self.sim.profession,
         )
         self._gen_positions()
-        self.playing = True  # Run starts the simulation immediately
+        self.playing = True  # start immediately
         self.status.config(fg=DIM)
         self.canvas.focus_set()  # move focus out of the entry so keys control the sim
         self._render_frame()
@@ -404,6 +430,10 @@ class Dashboard:
         # always refresh when paused/stepping so the charts stay in sync.
         if (not self.playing) or (self.sim.tick_count % CHART_INTERVAL == 0):
             self.charts.update(self.sim)
+        self._update_status()
+
+    def _update_status(self) -> None:
+        """Cheap refresh of just the status/help line (no map/chart redraw)."""
         state = "▶ playing" if self.playing else "❚❚ paused"
         self.status.config(
             fg=DIM,
@@ -456,13 +486,13 @@ class Dashboard:
         if self._editing():
             return
         self.tick_ms = max(20, self.tick_ms - 40)
-        self._render_frame()
+        self._update_status()  # cheap -- avoids the key-repeat lag from redrawing
 
     def _slower(self, _evt=None) -> None:
         if self._editing():
             return
         self.tick_ms = min(2000, self.tick_ms + 40)
-        self._render_frame()
+        self._update_status()
 
     def run(self) -> None:
         self.root.bind("<space>", self._toggle_play)
@@ -494,7 +524,7 @@ def _parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--skill-variance", type=float, default=0.15)
     ap.add_argument("--risk-tolerance", type=float, default=0.5)
     ap.add_argument("--punishment", type=float, default=0.5)
-    ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--tick-ms", type=int, default=200)
     ap.add_argument(
         "--screenshot",
