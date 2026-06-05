@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import math
 import tkinter as tk
+from pathlib import Path
 
 import numpy as np
 
@@ -151,9 +152,10 @@ def make_positions(sim: Simulation):
 class Dashboard:
     """Owns the window, the cosmetic agent positions, and the render loop."""
 
-    def __init__(self, sim: Simulation, tick_ms: int = 200) -> None:
+    def __init__(self, sim: Simulation, tick_ms: int = 200, run_ticks: int = 1000) -> None:
         self.sim = sim
         self.tick_ms = tick_ms
+        self.run_ticks = run_ticks  # batch run length (Run executes this many ticks)
         self.playing = False
         self._gen_positions()
         self._build_widgets()
@@ -176,6 +178,10 @@ class Dashboard:
 
         # seed-parameter control bar (inline edits, no modal) pinned to the top.
         self._build_controls()
+
+        # results band: the comparator verdict after a batch run.
+        self.results = tk.Label(self.root, font=FONT_BOLD, fg=ACCENT, bg=BG, anchor="w")
+        self.results.pack(side="top", fill="x", padx=8, pady=(6, 0))
 
         root = tk.Frame(self.root, bg=BG)
         root.pack(fill="both", expand=True, padx=8, pady=8)
@@ -257,6 +263,9 @@ class Dashboard:
 
         tk.Label(bar, text="seed", font=FONT, fg=DIM, bg=BG).pack(side="left", padx=(10, 2))
         self.seed_entry = self._entry(bar, str(self.sim.seed), width=5)
+
+        tk.Label(bar, text="ticks", font=FONT, fg=DIM, bg=BG).pack(side="left", padx=(10, 2))
+        self.ticks_entry = self._entry(bar, str(self.run_ticks), width=6)
 
         tk.Button(
             bar,
@@ -360,7 +369,7 @@ class Dashboard:
             return False
 
     def _on_run(self) -> None:
-        """Read the seed sliders, build a NEW simulation, start and redraw."""
+        """Read the seed sliders, build a NEW sim, and batch-run it to results."""
         def real(key):
             return PARAM_NORM[key][1](self.sliders[key].get())
 
@@ -372,6 +381,7 @@ class Dashboard:
                 punishment=real("punishment"),
             )
             seed = int(self.seed_entry.get())
+            self.run_ticks = max(1, int(self.ticks_entry.get()))
         except ValueError as exc:
             self.status.config(fg=COLOR_IMPRISONED, text=f"bad parameter: {exc}")
             return
@@ -392,10 +402,29 @@ class Dashboard:
             profession=self.sim.profession,
         )
         self._gen_positions()
-        self.playing = True  # start immediately
-        self.status.config(fg=DIM)
-        self.canvas.focus_set()  # move focus out of the entry so keys control the sim
+        self.playing = False  # batch-first: run to completion, then show results
+        self.canvas.focus_set()
+        self.status.config(fg=ACCENT, text=f"running {self.run_ticks} ticks...")
+        self.root.update_idletasks()  # paint the "running" message before blocking
+        self.sim.run(self.run_ticks)
         self._render_frame()
+        self._show_result()
+
+    def _show_result(self) -> None:
+        """Score the finished run against real countries and report the verdict."""
+        from validation import best_fit, extract_metrics, load_targets
+
+        targets = load_targets(Path(__file__).resolve().parents[1] / "data" / "countries.json")
+        g = extract_metrics(self.sim)["gini"]
+        name, res = best_fit({"gini": g}, targets)
+        country = name.replace("_", " ") if name else "?"
+        self.results.config(
+            text=(
+                f"RESULT  income gini {g:.3f}   →  closest: {country} "
+                f"(gini {targets[name]['gini']}, dist {res['distance']})   "
+                f"[space] watch live   ↻ replay"
+            )
+        )
 
     # --- rendering (colour + stats formatting come from render.py) ---
 
