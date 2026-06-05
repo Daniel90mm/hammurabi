@@ -1,3 +1,4 @@
 version,date,n_mechanism_params,best_fit_error,lambda,total_cost,notes
 ce92754,2026-06-05,16,0.3081,0.02,0.6281,"baseline: full skeleton (steps 1-5) + decay, skill-income, emergent pricing"
 a82f5b7,2026-06-05,16,0.3222,0.02,0.6422,income-gini metric (like-for-like vs World Bank); no new params
+229f3fd,2026-06-05,17,0.3138,0.02,0.6538,add wealth returns (r=0.015) as capital income; +1 param
