@@ -37,17 +37,26 @@ class EconomyConfig:
     decay_skill_factor: float = 1.0  # how strongly build quality moves the decay
     #   rate around the base: effective = base * (1 + factor*(0.5 - quality)).
     #   quality 0 (shoddy) decays faster; quality 1 (expert) decays slower.
+    income_skill_min: float = 0.4  # wage scales with skill, not flat: a skill-0
+    #   agent earns this fraction of base, skill-1 earns (2 - this); skill 0.5
+    #   earns exactly base. Sustains wealth dispersion so σ drives inequality.
 
 
 def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
-    """Pay the flat wage to every active agent.
+    """Pay a skill-scaled wage to every active agent.
 
-    Income is created exogenously (an open economy / external wage), so total
-    wealth grows -- this is not a conserved transfer.
+    Wage = base * (income_skill_min + (1 - income_skill_min) * 2 * skill), so a
+    skill-0 agent earns ``income_skill_min`` of base, skill-1 earns ``2 -
+    income_skill_min``, and skill-0.5 earns exactly base. Skill-scaling (rather
+    than a flat wage) sustains wealth dispersion -- otherwise everyone
+    accumulates the same income and inequality washes out (gini -> 0). Income is
+    exogenous (external wage), so total wealth grows; this is not a transfer.
     """
     active = pool.active_mask()
-    pool.wealth[active] += config.base_income
-    return {"wage_paid": config.base_income * int(np.count_nonzero(active))}
+    factor = config.income_skill_min + (1.0 - config.income_skill_min) * 2.0 * pool.skill
+    wage = config.base_income * np.clip(factor, 0.0, None)
+    pool.wealth[active] += wage[active]
+    return {"wage_paid": float(wage[active].sum())}
 
 
 def update_price(

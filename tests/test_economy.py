@@ -41,12 +41,23 @@ def _pool(roles, *, wealth=100.0, has_house=False, state=State.ACTIVE, skill=0.5
 
 
 def test_income_paid_to_active_only():
-    pool = _pool([Role.BUILDER, Role.RESIDENT])
+    pool = _pool([Role.BUILDER, Role.RESIDENT])  # skill 0.5 -> earns exactly base
     pool.state[1] = State.DEAD
     pool.wealth[:] = 0.0
     earn_income(pool, EconomyConfig(base_income=10.0))
-    assert pool.wealth[0] == 10.0  # active builder paid
+    assert pool.wealth[0] == 10.0  # active builder paid (skill 0.5 -> base)
     assert pool.wealth[1] == 0.0  # dead resident not paid
+
+
+def test_income_scales_with_skill():
+    pool = _pool([Role.RESIDENT, Role.RESIDENT, Role.RESIDENT])
+    pool.skill[:] = [0.0, 0.5, 1.0]
+    pool.wealth[:] = 0.0
+    cfg = EconomyConfig(base_income=10.0, income_skill_min=0.4)
+    earn_income(pool, cfg)
+    assert pool.wealth[0] == 4.0  # skill 0 -> 0.4 * base
+    assert pool.wealth[1] == 10.0  # skill 0.5 -> base
+    assert pool.wealth[2] == 16.0  # skill 1 -> 1.6 * base
 
 
 def test_successful_build_transfers_and_conserves_wealth():

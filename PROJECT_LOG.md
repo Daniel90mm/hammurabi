@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-05 - Skill-dependent income sustains inequality and wakes up σ
+
+Type: Finding
+
+Replaced the flat wage with a skill-scaled one: wage = base*(income_skill_min + (1-income_skill_min)*2*skill), centered so skill 0.5 still earns base (skill 0 -> 0.4x, skill 1 -> 1.6x). This fixes the equalization flaw (gini no longer decays to ~0 -- it now stabilizes at a positive level) AND finally makes σ load-bearing: at fixed seed/200 ticks, gini = 0.051 / 0.165 / 0.236 for σ = 0.05 / 0.25 / 0.45 (clean monotonic). All four founding seeds now move outputs: pop (scale), σ (inequality/gini), ρ (profession ratio), P (punishment outcomes). This was the predicted "σ needs a selection/nonlinearity to matter" resolution. Note gini tops out ~0.24 at σ=0.45; reaching the high end of real countries (~0.5-0.6) may need a further dispersion mechanism (compounding returns, inheritance) -- defer until the comparator shows it's required.
+
 ## 2026-06-05 - Comparator framework built; real target data is an open thread
 
 Type: Open thread
