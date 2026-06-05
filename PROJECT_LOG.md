@@ -40,6 +40,14 @@ Type: Finding
 
 Replaced the flat wage with a skill-scaled one: wage = base*(income_skill_min + (1-income_skill_min)*2*skill), centered so skill 0.5 still earns base (skill 0 -> 0.4x, skill 1 -> 1.6x). This fixes the equalization flaw (gini no longer decays to ~0 -- it now stabilizes at a positive level) AND finally makes σ load-bearing: at fixed seed/200 ticks, gini = 0.051 / 0.165 / 0.236 for σ = 0.05 / 0.25 / 0.45 (clean monotonic). All four founding seeds now move outputs: pop (scale), σ (inequality/gini), ρ (profession ratio), P (punishment outcomes). This was the predicted "σ needs a selection/nonlinearity to matter" resolution. Note gini tops out ~0.24 at σ=0.45; reaching the high end of real countries (~0.5-0.6) may need a further dispersion mechanism (compounding returns, inheritance) -- defer until the comparator shows it's required.
 
+## 2026-06-05 - Wealth-returns rejected by the ledger; inheritance+reproduction is the next candidate
+
+Type: Rejected
+
+Added capital returns on wealth (Piketty r>g), counted as income. Ledger verdict under the fixed income-gini measurement: error fell only 0.3222->0.3138 while +1 param cost 0.02, so total_cost ROSE 0.6422->0.6538 -> not justified, reverted (back to 0.6422). Reason it failed: returns amplify EXISTING dispersion, lifting the low end but leaving the model's ceiling ~0.26; the error is dominated by high-inequality countries (US 0.42, Brazil 0.50, Colombia 0.54) that returns can't reach at any plausible r (checked up to 0.03). The real driver of HIGH inequality is cross-generational concentration -> inheritance, which requires reproduction (also fixes population->0 collapse). Deferred as a coupled unit (births + death-transfers), to tackle deliberately.
+
+Demographics design decision (for when we build it): do NOT match real fertility/lifespan numbers -- there is no real time unit (a tick is not a year) and fertility/lifespan are confounded endogenous OUTCOMES, not founding inputs; matching them is false precision/invention. Choose by purpose: lifespan = death hazard tuned so a run spans several generations (so dynasties can form); fertility = birth rate that self-balances toward the founding population (births ~ deaths) so the sim neither explodes nor collapses. 1-2 knobs, calibrated to "alive + multigenerational", logged on the ledger. Make fertility endogenous (fertility = f(wealth), the demographic transition) ONLY if a demographic comparator target later fails without it.
+
 ## 2026-06-05 - Adopted a model-cost ledger (MDL/AIC) to gate complexity
 
 Type: Decision
