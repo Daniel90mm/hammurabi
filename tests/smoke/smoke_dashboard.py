@@ -29,8 +29,13 @@ def main() -> int:
     try:
         dash = Dashboard(sim, tick_ms=50)
     except tk.TclError as exc:
-        print(f"no display ({exc}); skipping dashboard smoke")
-        return 0
+        # Only skip when there is genuinely no display -- any other TclError is a
+        # real bug (e.g. a bad widget option) and must fail loudly.
+        msg = str(exc).lower()
+        if "display" in msg or "no such file" in msg:
+            print(f"no display ({exc}); skipping dashboard smoke")
+            return 0
+        raise
 
     dash._render_frame()
     dash.root.update()

@@ -29,6 +29,7 @@ import tkinter as tk
 
 import numpy as np
 
+from charts import ChartsPanel
 from render import (
     ACCENT,
     BG,
@@ -52,6 +53,7 @@ FONT_TITLE = ("monospace", 13, "bold")
 
 MAP_PX = 520  # initial map canvas size; it expands to fill the window
 MAX_DRAW = 4000  # cap on agents drawn per frame (subsampled if exceeded)
+CHART_INTERVAL = 3  # redraw charts every N ticks during playback (perf)
 
 # Map each seed parameter to/from a normalized 0-1 slider position. Population
 # uses a log scale (it spans 100..100,000); the rest are linear over their range.
@@ -166,7 +168,8 @@ class Dashboard:
         self.root = tk.Tk()
         self.root.title("Hammurabi")
         self.root.configure(bg=BG)
-        self.root.minsize(640, 400)
+        self.root.minsize(960, 680)
+        self.root.geometry("1280x820")
 
         # status / help line first, pinned to the bottom so it survives resizing.
         self.status = tk.Label(self.root, font=FONT, fg=DIM, bg=BG, anchor="w")
@@ -213,15 +216,18 @@ class Dashboard:
             justify="left",
             anchor="nw",
         )
-        self.stats.pack(anchor="nw", fill="both", expand=True, pady=(6, 0))
+        self.stats.pack(anchor="nw", fill="x", pady=(6, 0))
 
         # legend -- one colour-matched chip per agent category
         legend = tk.Frame(right, bg=BG)
-        legend.pack(anchor="nw", pady=(8, 0))
+        legend.pack(anchor="nw", pady=(8, 2))
         for name, color in LEGEND:
             tk.Label(
                 legend, text=f"■ {name}", font=FONT, fg=color, bg=BG
             ).pack(side="left", padx=(0, 14))
+
+        # live charts, integrated below the stats text (gets the expanding space)
+        self.charts = ChartsPanel(right)
 
     # --- seed controls (normalized 0-1 sliders) ---
 
@@ -293,7 +299,6 @@ class Dashboard:
             highlightbackground=HAIRLINE,
             bd=0,
             sliderrelief="flat",
-            troughrelief="flat",
             command=lambda t, k=key: self._on_slider(k, float(t)),
         )
         slider.set(min(1.0, max(0.0, to_norm(current_value))))
@@ -395,6 +400,10 @@ class Dashboard:
     def _render_frame(self) -> None:
         self._draw_map()
         self._draw_stats()
+        # Redrawing matplotlib every tick is costly; throttle during playback but
+        # always refresh when paused/stepping so the charts stay in sync.
+        if (not self.playing) or (self.sim.tick_count % CHART_INTERVAL == 0):
+            self.charts.update(self.sim)
         state = "▶ playing" if self.playing else "❚❚ paused"
         self.status.config(
             fg=DIM,
