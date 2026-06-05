@@ -19,7 +19,6 @@ from agents import AgentPool, Role
 from metrics import gini
 from economy import (
     EconomyConfig,
-    apply_capital_returns,
     attempt_builds,
     decay_houses,
     earn_income,
@@ -131,12 +130,11 @@ class Simulation:
         self.price = update_price(self.price, demand, supply, self.economy)
 
         wage_info = earn_income(self.agents, self.economy)
-        capital_income = apply_capital_returns(self.agents, self.economy)
         result = attempt_builds(self.agents, self.economy, self.rng, self.price)
 
-        # Per-agent income this tick = wage + capital return + building revenue;
-        # smoothed (reuses the profession income-smoothing alpha).
-        income = wage_info["wage"] + capital_income
+        # Per-agent income this tick = wage + building revenue; smoothed (reuses
+        # the profession income-smoothing alpha, so no new mechanism parameter).
+        income = wage_info["wage"].copy()
         income[result["paid_builders"]] += self.price
         a = self.profession.income_ema_alpha
         self.recent_income = (1 - a) * self.recent_income + a * income

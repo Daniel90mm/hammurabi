@@ -40,9 +40,6 @@ class EconomyConfig:
     income_skill_min: float = 0.4  # wage scales with skill, not flat: a skill-0
     #   agent earns this fraction of base, skill-1 earns (2 - this); skill 0.5
     #   earns exactly base. Sustains wealth dispersion so σ drives inequality.
-    wealth_return_rate: float = 0.015  # capital return per tick: wealth earns
-    #   r*wealth, counted as (capital) income. Concentrated among the wealthy, so
-    #   it drives inequality up (Piketty r>g). 0 disables it.
 
 
 def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
@@ -62,21 +59,6 @@ def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
     # "wage" is the per-agent wage this tick (0 for inactive) -- the basis for the
     # income-Gini metric the sim assembles.
     return {"wage_paid": float(wage.sum()), "wage": wage}
-
-
-def apply_capital_returns(pool: AgentPool, config: EconomyConfig) -> np.ndarray:
-    """Pay each active agent a capital return on their wealth and return the
-    per-agent capital income (so it can be counted toward the income-Gini).
-
-    Returns are proportional to wealth, so they accrue mostly to the already
-    wealthy -- the canonical driver of inequality (Piketty r>g). Capital income
-    is genuinely income, which is why it must feed the income metric, not just
-    the wealth stock.
-    """
-    active = pool.active_mask()
-    capital_income = np.where(active, pool.wealth * config.wealth_return_rate, 0.0)
-    pool.wealth += capital_income
-    return capital_income
 
 
 def update_price(
