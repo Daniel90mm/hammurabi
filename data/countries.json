@@ -1,23 +1,42 @@
 {
-  "_note": "SYNTHETIC, ILLUSTRATIVE targets -- NOT real-world data. Fabricating real country statistics is forbidden (No invention). These exist only to exercise the comparator machinery and are expressed in the model's own abstract metric units. Before any real validation, replace them with sourced figures and define the mapping between model metrics and real statistics.",
-  "_metrics": {
-    "gini": "wealth inequality, 0..1",
-    "builder_fraction": "share of active agents who are builders, 0..1",
-    "affordability": "house price / mean wealth (model units)",
-    "death_rate": "cumulative deaths / initial population, 0..1"
-  },
+  "_source": "World Bank, Gini index (indicator SI.POV.GINI), most-recent-value-per-country via api.worldbank.org. The API reports a 0-100 scale; values here are converted to 0-1 (gini = value / 100). Regenerate with scripts/fetch_gini.py.",
+  "_caveat": "Only 'gini' has a trusted real-world source. The model's gini measures WEALTH inequality, whereas the World Bank Gini measures INCOME/consumption inequality (typically lower than wealth inequality) -- so this comparison is indicative, not exact, until the model emits an income-based gini. The other model metrics (builder_fraction, affordability, death_rate) have no trusted mapping and are intentionally omitted rather than fabricated (No invention).",
   "profiles": {
-    "egalitarian_ref": {
-      "gini": 0.20,
-      "builder_fraction": 0.45,
-      "affordability": 0.30,
-      "death_rate": 0.02
+    "norway": {
+      "gini": 0.265,
+      "_year": 2023
     },
-    "unequal_ref": {
-      "gini": 0.45,
-      "builder_fraction": 0.70,
-      "affordability": 0.10,
-      "death_rate": 0.15
+    "denmark": {
+      "gini": 0.299,
+      "_year": 2023
+    },
+    "slovenia": {
+      "gini": 0.247,
+      "_year": 2023
+    },
+    "japan": {
+      "gini": 0.323,
+      "_year": 2020
+    },
+    "united_kingdom": {
+      "gini": 0.324,
+      "_year": 2021
+    },
+    "united_states": {
+      "gini": 0.418,
+      "_year": 2024
+    },
+    "colombia": {
+      "gini": 0.544,
+      "_year": 2024
+    },
+    "brazil": {
+      "gini": 0.503,
+      "_year": 2024
+    },
+    "south_africa": {
+      "gini": 0.541,
+      "_year": 2022
     }
   }
 }

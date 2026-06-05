@@ -4,11 +4,16 @@ This is the "data gate" from the project philosophy: a mechanism earns its place
 only when the model can't match a real target without it. This module computes
 the model's headline emergent metrics and a distance to a named target profile.
 
-IMPORTANT: the bundled target profiles in data/countries.json are SYNTHETIC and
-illustrative -- fabricating real country statistics is forbidden ("No
-invention"). Replace them with sourced figures (and reconcile the unit mapping
-between the model's abstract metrics and real-world statistics) before drawing
-any real-world conclusions.
+The target profiles in data/countries.json carry REAL Gini coefficients sourced
+from the World Bank (see the file's _source/_caveat). Only 'gini' has a trusted
+real-world mapping; the model's other metrics have none and are intentionally
+absent from the targets (fabricating them would violate "No invention").
+score() only compares metrics present in BOTH the model vector and the target,
+so a gini-only target scores on gini alone -- which is the honest thing to do.
+
+Caveat that still applies: the model's gini is WEALTH inequality while the World
+Bank's is INCOME inequality, so the comparison is indicative until the model
+emits an income-based gini.
 """
 
 from __future__ import annotations

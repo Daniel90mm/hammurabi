@@ -39,10 +39,17 @@ def test_score_ignores_note_keys():
     assert result["per_metric"] == {"gini": 0.0}
 
 
-def test_load_targets_and_best_fit():
+def test_load_targets_are_real_countries_with_gini():
     targets = load_targets(DATA)
-    assert "egalitarian_ref" in targets and "unequal_ref" in targets
-    # A metric vector right on the egalitarian profile should pick it.
-    name, result = best_fit(dict(targets["egalitarian_ref"]), targets)
-    assert name == "egalitarian_ref"
+    assert "denmark" in targets and "south_africa" in targets
+    # Real World Bank Gini values, converted to 0-1.
+    assert 0.0 < targets["denmark"]["gini"] < 1.0
+    assert targets["south_africa"]["gini"] > targets["denmark"]["gini"]
+
+
+def test_best_fit_picks_matching_country():
+    targets = load_targets(DATA)
+    # A model whose gini exactly matches Denmark should be closest to Denmark.
+    name, result = best_fit({"gini": targets["denmark"]["gini"]}, targets)
+    assert name == "denmark"
     assert result["distance"] == 0.0

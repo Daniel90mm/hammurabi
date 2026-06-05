@@ -10,8 +10,8 @@ Where everything lives.
 | `tests/` | Unit tests for pure functions |
 | `tests/smoke/` | Smoke scripts for simulation runs and exploratory mechanics |
 | `docs/` | Human-written reference docs (mechanics, economy, punishment, etc.) |
-| `data/` | Real-world benchmark data (country statistics) |
-| `scripts/` | Automation utilities (`hammurabi` launcher, `install-desktop.sh`, `make_icon.py`, doc sync) |
+| `data/` | Real-world benchmark data (`countries.json`: World Bank Gini, refreshable via `scripts/fetch_gini.py`) |
+| `scripts/` | Automation utilities (`hammurabi` launcher, `install-desktop.sh`, `make_icon.py`, `fetch_gini.py`, doc sync) |
 | `assets/` | Generated app assets (icon) |
 | `consults/` | Consult documents (LLM-to-LLM, written when stuck) |
 | `handoffs/` | Session handoff documents |

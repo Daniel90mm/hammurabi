@@ -40,6 +40,12 @@ Type: Finding
 
 Replaced the flat wage with a skill-scaled one: wage = base*(income_skill_min + (1-income_skill_min)*2*skill), centered so skill 0.5 still earns base (skill 0 -> 0.4x, skill 1 -> 1.6x). This fixes the equalization flaw (gini no longer decays to ~0 -- it now stabilizes at a positive level) AND finally makes σ load-bearing: at fixed seed/200 ticks, gini = 0.051 / 0.165 / 0.236 for σ = 0.05 / 0.25 / 0.45 (clean monotonic). All four founding seeds now move outputs: pop (scale), σ (inequality/gini), ρ (profession ratio), P (punishment outcomes). This was the predicted "σ needs a selection/nonlinearity to matter" resolution. Note gini tops out ~0.24 at σ=0.45; reaching the high end of real countries (~0.5-0.6) may need a further dispersion mechanism (compounding returns, inheritance) -- defer until the comparator shows it's required.
 
+## 2026-06-05 - Real World Bank Gini wired in; first validation result
+
+Type: Finding
+
+Replaced synthetic targets with real World Bank Gini (SI.POV.GINI, most-recent-value-per-country, 9 countries spanning Norway 0.265 to Colombia 0.544), fetched reproducibly via scripts/fetch_gini.py. Only gini is sourced; the other model metrics are intentionally omitted (no trusted mapping). First validation: at σ=0.5 the model's gini (~0.244) best-matches Norway (0.265, distance 0.079) -- it reproduces the MOST egalitarian real societies but tops out well below the US (0.418), Brazil (0.503), South Africa (0.541). So the model structurally under-produces inequality. Important caveat: the model's gini is WEALTH inequality while World Bank's is INCOME inequality (wealth gini is usually HIGHER), so the true gap to real societies is even larger -- and ideally the model should emit an income-gini for a like-for-like comparison. Net: a dispersion mechanism beyond skill-scaled income is now DATA-demanded (not just intuited) to reach mid/high-inequality countries; candidates to weigh later: compounding returns on wealth, inheritance, or wealth-correlated income.
+
 ## 2026-06-05 - Comparator framework built; real target data is an open thread
 
 Type: Open thread
