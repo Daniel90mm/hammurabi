@@ -9,14 +9,15 @@ These are **hard rules**, not preferences. An agent proposing UI that violates t
 - **Real contrast.** High contrast between foreground and background. No faint grey-on-grey text. No low-contrast borders pretending to be structure.
 - **Clear hierarchy through type and spacing**, not through drop-shadows and colored boxes.
 - **Dense where data is dense.** Do not waste vertical space on oversized padding "for breathing room".
-- **Simple GUI window is the primary visualization.** A single dead-simple window, split: a 2D overhead map of the city ("Hammurabi") on one side, the statistics dashboard on the other. The **statistics are the main focus**; the map is a faithful but cosmetic view of state (agent positions do not feed back into the model — see PROJECT_LOG). The map redraws **per tick, not per micro-action**. Keep it terminal-*like* in spirit — flat, sharp, monospace, dense — but use real pixels. Static plots (matplotlib) remain a secondary export.
+- **Simple GUI window is the primary visualization.** A single dead-simple window: a 2D overhead map of the city ("Hammurabi"), the statistics panel, and live charts. The **statistics/charts are the main focus**; the map is a faithful but cosmetic view of state (agent positions do not feed back into the model — see PROJECT_LOG). Keep it terminal-*like* in spirit — flat, sharp, monospace, dense — but use real pixels.
+- **Batch-first, not live-first.** The default interaction is **run → results**: set seeds + run length, run to completion instantly, then read the summary, charts, and the country-comparison verdict. Watching a run tick-by-tick is an *optional* toggle. The science is comparing many runs, not watching one.
 
 ## Interaction
 
 - **Primary actions are obvious.** Destructive actions are visually distinct, not just red text.
 - **No animated transitions over ~150ms.** Instant feels better than smooth.
 - **Keyboard-first where reasonable.** If the user can complete a task without reaching for the mouse, they should be able to.
-- **The simulation window is the interface.** Think `htop` rendered to a canvas — real-time updating, keyboard-controlled where reasonable, exits cleanly. Dense and flat, not chrome-heavy.
+- **The simulation window is the interface.** A canvas-rendered dashboard — dense, flat, keyboard-controlled where reasonable, exits cleanly. Not chrome-heavy.
 
 ## Two-persona test
 

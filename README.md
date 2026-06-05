@@ -1,8 +1,8 @@
-# hammurabi  
+# hammurabi
 
 **Agent-based society simulator that derives civilizational outcomes from first principles.**
 
-Seed it with a country's founding parameters. Watch inequality, housing markets, and justice systems emerge.
+Seed it with a society's founding parameters. Watch inequality, housing markets, and justice systems emerge — then score the result against real countries.
 
 ---
 
@@ -10,7 +10,7 @@ Seed it with a country's founding parameters. Watch inequality, housing markets,
 
 Babylon's Code of Hammurabi had a simple rule: if a builder's house collapses and kills the owner, the builder is put to death. Modern societies replaced this with fines, insurance, and prison time. But *why* did we converge on that? And what happens to a civilization that doesn't?
 
-Hammurabi is a simulation that answers this by modeling societies as collections of agents who interact, fail, and face consequences. Different punishment regimes produce different emergent outcomes and those outcomes can be compared to real-world country statistics to validate the model.
+Hammurabi models societies as collections of agents who interact, fail, and face consequences. Different punishment regimes produce different emergent outcomes, and those outcomes are compared to real-world country statistics to validate the model. When the model *can't* match reality, the way it fails tells you what mechanism is missing.
 
 ## How It Works
 
@@ -20,169 +20,190 @@ Every simulation is initialized with just 4 values:
 
 | Parameter | What It Controls | Range |
 |-----------|-----------------|-------|
-| **Population** (N) | Scale of the society | 100 -- 100,000 |
-| **Skill variance** (sigma) | How unequal agents are in competence | 0.01 -- 0.5 |
-| **Risk tolerance** (rho) | Willingness to enter dangerous professions | 0.1 -- 0.9 |
-| **Punishment regime** (P) | Consequences for failure (death to fines) | 0.0 -- 1.0 |
+| **Population** (N) | Scale of the society | 100 – 100,000 |
+| **Skill variance** (σ) | How unequal agents are in competence | 0.01 – 0.5 |
+| **Risk tolerance** (ρ) | Willingness to enter the dangerous building trade | 0.1 – 0.9 |
+| **Punishment regime** (P) | Consequence for a fatal building failure | 0.0 – 1.0 |
 
-Everything else — prices, profession distribution, inequality, housing availability emerges from agent interactions. Nothing is hardcoded.
+Everything else — prices, profession distribution, inequality, who is housed — emerges from agent interactions.
+
+> Are these the *right* four seeds? Maybe not — they may be too entangled. Finding a more orthogonal, minimal set is a data-driven question (sensitivity analysis + PCA) that needs more output metrics first; see *Future Directions* and `PROJECT_LOG.md`. `P` stays regardless — it is the thesis.
 
 ### Agents
 
-Each agent has a role (builder or resident), a wealth score, a skill level, and a state (active, imprisoned, or dead). Agents earn income, request services, and sometimes things go wrong — not maliciously, just probabilistically.
+Each agent has a role (builder or resident), a skill level, accumulated wealth, a state (active, imprisoned, or dead), and a house with a build quality. **Housing is universal** — every agent needs somewhere to live, *builders included*, so a builder's own home can collapse or wear out like anyone's. Each tick every active agent earns a **skill-scaled wage** (skilled agents earn more — this is what sustains inequality); builders additionally earn the house price when they build.
 
 ### The Tick Loop
 
 ```
 for each tick:
-    1. Agents earn income based on role
-    2. Residents request houses (if needed)
-    3. Builders are matched to requests (price emerges from supply/demand)
-    4. Each build succeeds or fails based on builder skill
-    5. On failure: injury/death roll + punishment applied
-    6. Agents evaluate professions and some switch roles
-    7. Houses age and decay
-    8. Statistics logged, ASCII dashboard updated
+    0. Released prisoners rejoin the active population
+    1. House price updates from supply (builders) vs demand (houseless agents)
+    2. Every active agent earns a skill-scaled wage
+    3. Builders are matched to houseless agents and attempt a build;
+       success depends on builder skill (with an irreducible failure floor)
+    4. On a failed build: the occupant may be killed, and the builder is
+       punished according to P (death / prison / fine)
+    5. Agents compare recent role income; some switch profession (gated by ρ)
+    6. Houses wear out — faster for shoddily-built ones — and owners re-enter
+       the housing market
+    7. The tick's statistics are recorded to the history buffer
 ```
 
 ### Punishment Spectrum
 
-The punishment parameter P is continuous from 0 to 1:
+The punishment parameter `P` is continuous from 0 to 1, blended so it hits three anchors and interpolates smoothly between them:
 
-- **P = 0.0** — Hammurabi regime: builder is permanently removed (death)
-- **P = 0.5** — Imprisonment: builder is removed for N ticks, then returns
-- **P = 1.0** — Compensatory: builder pays fines, remains active
+- **P = 0.0** — Hammurabi regime: the builder is permanently removed (death)
+- **P = 0.5** — Imprisonment: the builder is removed for a fixed number of ticks, then returns
+- **P = 1.0** — Compensatory: the builder pays a fine and remains active
 
-This allows exploring the entire spectrum between ancient and modern justice systems, not just discrete categories.
+This explores the whole spectrum between ancient and modern justice, not just discrete categories.
 
-## Simulation Modes
+## Running It
 
-### Manual Mode
-Provide the 4 seed parameters, run the simulation, visually compare results to real-world benchmarks.
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install numpy matplotlib pillow pytest
 
-### Auto-Calibration Mode
-Specify a target country. An optimizer sweeps parameter space to minimize the distance between simulation output and real-world statistics. Outputs best-fit parameters.
+# launch the GUI (batch-first: set seeds + run length, hit Run, read the result)
+.venv/bin/python src/dashboard.py
 
-### Free-Run Mode
-Let the model mathematically pick parameter values using optimization (grid search or gradient-based). Useful for exploring what parameter combinations produce stable civilizations.
+# render a frame to PNG without a display (works under Wayland)
+.venv/bin/python src/dashboard.py --screenshot out.png --ticks 200 --punishment 0.0
+
+# refresh real-world targets, and append a model-cost ledger row
+.venv/bin/python scripts/fetch_gini.py
+.venv/bin/python scripts/log_model_cost.py --note "what changed"
+
+# tests
+.venv/bin/python -m pytest -q
+```
+
+A desktop launcher can be installed with `scripts/install-desktop.sh`.
+
+## The Interface
+
+A single flat, dark GUI window (Tkinter), **batch-first**: set the four seeds (0–1 sliders) and a run length, press **Run**, and the simulation runs to completion *instantly*. You then get:
+
+- a **2D overhead map** of the city (each agent a colored pixel — cosmetic only; positions do not feed back into the model),
+- a **statistics panel** (the focus),
+- **live charts** from the run's history (composition over time, current split, Gini over time, wealth distribution),
+- a **results verdict**: the run's income-Gini and the closest-matching real country.
+
+Watching a run tick-by-tick is an optional toggle (`space`), not the default — the science is in running and comparing *many* runs, not watching one.
 
 ## What Gets Measured
 
-Emergent properties compared against real-world data:
+Emergent properties read off each run:
 
-- **Gini coefficient** — income/wealth inequality
-- **Profession ratio** — builder-to-resident distribution
-- **Housing affordability** — median house price / median income
-- **Builder turnover** — how fast builders leave or are removed
-- **Shock recovery** — ticks to stabilize after removing 10% of builders
+- **Gini coefficient** — computed for both *wealth* and *income*. **Income-Gini is the metric scored against real data** (income inequality is what the World Bank reports).
+- **Housing affordability** — house price / mean wealth (model units).
+- **Profession ratio** — builder share of the active population.
+- **Death rate** — cumulative deaths / initial population.
+
+(*Builder turnover* and *shock recovery* are planned, not yet built.)
 
 ## Validation Against Real Countries
 
-The model can be seeded with parameters estimated from real-world statistics for well-documented countries. If the emergent properties qualitatively match the real country, the model captures something real. If they don't, the *type* of failure tells you what mechanism is missing.
+Each run is scored by a comparator (`src/validation.py`) against real **World Bank Gini coefficients** for a spread of countries (`data/countries.json`, refreshable via `scripts/fetch_gini.py`). Only Gini is compared today — it is the one model metric with a trusted real-world mapping; the others are intentionally *not* faked.
+
+**Honest caveat:** the World Bank Gini is *income* inequality, while wealth-Gini and income-Gini differ — the model reports income-Gini for a like-for-like comparison, but the match remains indicative.
 
 **Distinguishing "wrong parameters" from "wrong model":**
-- If some parameter combination reproduces reality, the model structure is sound — you just need better parameter estimation.
-- If *no* parameter combination works (full sweep), the model is structurally missing a mechanism. The specific metric that fails tells you what to add next.
+- If some seed combination reproduces reality, the structure is sound — you just need better parameter estimation.
+- If *no* combination works (a full sweep), the model is structurally missing a mechanism, and the metric that fails tells you what to add.
 
-This is how complexity is introduced responsibly: the data demands it, not intuition.
+### The model-cost ledger
 
-## Output Structure
+Complexity is governed mechanically, not by taste, via an MDL/AIC-style rule:
 
 ```
-hammurabi/
-  runs/
-    run_001_denmark/
-      params.json            # Seed parameters + model version + random seed
-      summary.txt            # Final stats, benchmark comparison, fit error
-      dashboard.gif          # ASCII visualization over time
-      tick_log.csv           # Raw per-tick statistics
-      plots/
-        gini_over_time.png
-        population_over_time.png
-        profession_distribution.png
-        housing_affordability.png
-    run_002_us/
-      ...
+total_cost = prediction_error + λ · (number of mechanism parameters)
 ```
 
-Every run is fully reproducible: `params.json` stores the random seed and model version.
+A structural change is justified **only if it lowers `total_cost`** — the error it removes must outweigh the complexity it adds. Each model version appends one row to `data/model_cost_log.csv` (reproducible by git hash). See **`MODEL_COST.md`** for the full scheme and caveats. (It has already rejected one mechanism — wealth-returns raised the cost, so it was reverted on the record.)
+
+## Output & Reproducibility
+
+- Every run is reproducible from `(FoundingParams, seed)` — the layout and all randomness are seeded.
+- Per-tick history is kept in memory (a bounded deque) and drives the charts.
+- PNG snapshots of any frame: press `p` in the GUI, or use `--screenshot`.
+- `data/countries.json` — real benchmark targets. `data/model_cost_log.csv` — the append-only cost ledger.
+- A structured per-run output directory (`params.json`, plots, a story GIF) is planned.
 
 ## Tech Stack
 
-- **Python** with **NumPy** for the simulation core 
-- **Tkinter** (stdlib) for the real-time GUI: a single window split into a 2D overhead city map and a statistics dashboard
-- **Matplotlib** for static plot export
-- **SciPy** for auto-calibration optimization (optional)
-
-> Note: an earlier design mandated a terminal-only ASCII dashboard with "No GUI". That was reversed — see PROJECT_LOG. The visualization is now a simple GUI window. The flat/sharp/dense aesthetic still applies (see DESIGN_PRINCIPLES.md), and the map is a cosmetic view: agent positions do not feed back into the model.
+- **Python** + **NumPy** — the simulation core (structure-of-arrays for scale).
+- **Tkinter** (stdlib) — the GUI window (map + stats + charts).
+- **Matplotlib** — the embedded live charts and static plots.
+- **Pillow** — offscreen frame rendering (compositor-independent screenshots; the planned story GIF).
+- **SciPy** — reserved for the planned auto-calibration optimizer.
 
 ## Project Structure
 
 ```
 hammurabi/
   src/
-    simulation.py       # Core tick loop
-    agents.py           # Agent data structures
-    economy.py          # Transaction and pricing logic
-    punishment.py       # Regime definitions
-    calibration.py      # Parameter optimization and country fitting
-    dashboard.py        # ASCII real-time display
-    logger.py           # Run logging and stats export
-    gif_renderer.py     # ASCII frame capture to GIF
+    agents.py        # AgentPool: the population as parallel NumPy arrays
+    economy.py       # wages, building, emergent pricing, decay
+    punishment.py    # the P spectrum (death / prison / fine) + harm
+    profession.py    # income-driven role switching, gated by ρ
+    simulation.py    # FoundingParams + the tick loop + history buffer
+    metrics.py       # pure emergent metrics (Gini)
+    render.py        # palette, colour rules, offscreen PNG renderer
+    charts.py        # embedded matplotlib charts panel
+    dashboard.py     # the Tkinter GUI (batch-first run → results)
+    validation.py    # country comparator (score vs real targets)
+    model_cost.py    # complexity + error cost ledger machinery
   data/
-    countries.json      # Real-world benchmark statistics
-  runs/                 # Output directory (gitignored)
-  README.md
+    countries.json       # real World Bank Gini targets
+    model_cost_log.csv   # append-only model-cost ledger
+  scripts/           # launcher, icon, fetch_gini, log_model_cost
+  tests/             # unit tests + tests/smoke/ run scripts
+  MODEL_COST.md      # the complexity-vs-error rule
+  PROJECT_LOG.md     # append-only decisions / findings / rejected ideas
+  DESIGN_PRINCIPLES.md # hard UI rules
 ```
 
-## Build Order
+## Build Order & Status
 
-The implementation is phased so the simulation is interesting at every stage:
+The core simulation (the README's original steps 1–5) is complete, plus several mechanisms the data demanded:
 
-1. Agent data structures + basic tick loop
-2. Simple economy (flat income, fixed housing price)
-3. Failure + punishment mechanics
-4. Profession switching (agents choose roles based on profitability)
-5. Supply/demand pricing (house prices emerge from the market)
-6. ASCII dashboard + GIF capture
-7. Logging + plot generation
-8. Country benchmark data + comparison metrics
-9. Auto-calibration mode (optimizer)
-10. Model versioning for structural changes
-
-**Steps 1--5** are the core simulation. **Steps 6--10** are infrastructure. Something interesting emerges by step 5.
+- ✅ Agent data structures + tick loop
+- ✅ Simple economy → **skill-scaled** income (sustains inequality)
+- ✅ Failure + punishment mechanics (the `P` spectrum)
+- ✅ Profession switching (driven by recent *income*, gated by ρ)
+- ✅ Emergent supply/demand house pricing
+- ✅ Housing **decay** (quality-dependent; renews demand so the sim never freezes)
+- ✅ GUI (2D map + stats + charts), now **batch-first** ("run → results")
+- ✅ Per-tick history buffer + Gini metrics
+- ✅ Country comparator against real World Bank data
+- ✅ Model-cost ledger (MDL/AIC complexity gate)
+- ⏳ Story GIF replay; auto-calibration optimizer; structured run output
 
 ## Future Directions
 
-These are avenues to explore *after* the core model is validated:
+Add only when the data demands it (the cost ledger is the referee).
 
-### Additional Roles
-- **Architects** (manage builders, increase success probability)
-- **Merchants** (trade goods between agents)
-- **Educators** (allow role transitions, raise skill levels)
-- Roles should only be added when the model fails to reproduce a real-world metric without them
+### Population dynamics (the next coupled unit)
+**Mortality + reproduction + inheritance.** Without births, population only declines to zero. Reproduction fixes that *and* enables wealth to concentrate across generations (dynasties) — the likely missing driver of *high* inequality, which one lifetime can't produce. Run length would then be expressed in **generations**. Lifespan/fertility are chosen for purpose (alive + multigenerational), not matched to real demographic numbers (there is no calendar here).
 
-### Additional Mechanisms
-- **Education system** — non-builders can train to become builders (role mobility)
-- **Insurance markets** — agents pool risk by contributing to a shared fund
-- **Reputation system** — agents prefer high-skill builders, creating market dynamics
-- **Government / taxation** — redistribute wealth, fund public services
-- **Corruption** — agents who circumvent rules for personal gain
+### Finding the right seeds
+- **Sensitivity analysis** — which seed most affects which metric (reveals redundancy).
+- **PCA on country statistics** — discover the orthogonal founding variables from data instead of guessing them. Both need more output metrics first.
 
-### Advanced Validation
-- **PCA on country statistics** — instead of hand-picking 4 seed parameters, use principal component analysis on real-world data to find the mathematically orthogonal founding variables
-- **Evolutionary meta-layer** — let punishment parameters mutate across generations and see which justice systems survive natural selection
-- **Sensitivity analysis** — which seed parameter has the largest effect on which emergent property?
+### Additional roles & mechanisms (gated)
+Architects, merchants, educators; education/mobility, insurance, reputation, taxation, corruption — each only when a real-world metric can't be reproduced without it.
 
 ### Scaling
-- For 100k+ agents, hot loops can be rewritten in C or accelerated with Numba
-- Parameter sweeps are embarrassingly parallel — can be distributed across cores
+100k+ agents may want Numba/C for hot loops; parameter sweeps are embarrassingly parallel.
 
 ## Philosophy
 
-The goal is not to predict GDP or replicate a country exactly. It is to find the *simplest possible model* whose emergent properties qualitatively match real societies, and then to ask: what do different justice systems do to civilizations over time?
+The goal is not to predict GDP or replicate a country exactly. It is to find the *simplest possible model* whose emergent properties qualitatively match real societies — and then ask what different justice systems do to civilizations over time.
 
-Complexity is added only when the data demands it. If the model fails to match reality, the type of failure tells you what mechanism to add. This is science, not feature creep.
+Complexity is added only when the data demands it, and the cost ledger makes that rule mechanical. This is science, not feature creep.
 
 ## Inspiration
 

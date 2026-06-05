@@ -22,7 +22,7 @@ For non-interactive Codex delegation, use `codex exec` only with an explicit `--
 
 Hammurabi is an agent-based society simulator that derives inequality, housing markets, and justice-system outcomes from first principles. Seed it with 4 founding parameters (population, skill variance, risk tolerance, punishment regime) and watch civilization-level statistics emerge from individual agent interactions. The goal is the simplest possible model whose emergent properties qualitatively match real societies.
 
-The project is ~70% idea generation (mechanics, hypotheses, analysis) and ~30% simple UI and visualization (ASCII dashboard, plots, maybe a thin web viewer later).
+The project is ~70% idea generation (mechanics, hypotheses, analysis) and ~30% simple UI and visualization (a flat GUI dashboard: 2D map + stats + charts, plots, maybe a thin web viewer later).
 
 ## Hard rules
 
@@ -69,7 +69,7 @@ Exception: `README.md` is the universal convention and is always caps regardless
 
 One root file ships with every project but stays dormant until summoned. Do **not** engage its conventions on ordinary work:
 
-- **`DESIGN_PRINCIPLES.md`** — read and obey when making UI/visualization decisions (ASCII dashboard, plots, web viewer). For pure simulation/logic work, ignore. This project has ~30% UI so it will be engaged often.
+- **`DESIGN_PRINCIPLES.md`** — read and obey when making UI/visualization decisions (GUI dashboard, charts, plots, web viewer). For pure simulation/logic work, ignore. This project has ~30% UI so it will be engaged often.
 
 If unsure whether to engage, ask once.
 

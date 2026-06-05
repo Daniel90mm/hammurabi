@@ -6,7 +6,7 @@ Where everything lives.
 
 | Path | Purpose |
 |------|---------|
-| `src/` | Simulation source code (agents, economy, punishment, dashboard, etc.) |
+| `src/` | Source: core (`agents`, `economy`, `punishment`, `profession`, `simulation`), viz (`render`, `charts`, `dashboard`), analysis (`metrics`, `validation`, `model_cost`) |
 | `tests/` | Unit tests for pure functions |
 | `tests/smoke/` | Smoke scripts for simulation runs and exploratory mechanics |
 | `docs/` | Human-written reference docs (mechanics, economy, punishment, etc.) |
