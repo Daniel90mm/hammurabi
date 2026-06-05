@@ -26,4 +26,5 @@ Where everything lives.
 | `AGENTS.md` | Agent instructions (mirror of CLAUDE.md) |
 | `PROJECT_LOG.md` | Append-only record of ideas, decisions, findings, rejected concepts |
 | `DESIGN_PRINCIPLES.md` | Hard UI/visualization rules (GUI window: 2D map + stats dashboard) |
+| `MODEL_COST.md` | The complexity+error cost rule (MDL/AIC); ledger lives in `data/model_cost_log.csv` |
 | `pyproject.toml` | Project metadata, dependencies (numpy core; viz/calibration/dev extras), pytest config |
