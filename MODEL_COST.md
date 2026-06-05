@@ -47,6 +47,16 @@ call.
 - `best_fit_error` is only as good as the seed sweep; a coarse grid can
   understate how well a model could fit. Sharpened by step 9 (calibration).
 
+## Comparability: model changes vs measurement changes
+
+`total_cost` is only comparable across rows when the **error is measured the same
+way**. If a row changes *how* error is computed — the target data, the metric
+definition (e.g. wealth-Gini → income-Gini), or the seed sweep — it **resets the
+reference**: prior rows were scored with a different ruler. Such a row is a new
+baseline, not an improvement/regression over the previous one. Say so in `notes`.
+Only rows that change the **model** (mechanisms/params) under a fixed measurement
+are judged by the "did total_cost drop?" rule.
+
 ## Logging a new row
 
 After any structural change, append a row:
