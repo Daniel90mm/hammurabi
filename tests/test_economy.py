@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from agents import AgentPool, Role, State  # noqa: E402
 from economy import (  # noqa: E402
     EconomyConfig,
+    apply_capital_returns,
     attempt_builds,
     decay_houses,
     earn_income,
@@ -126,6 +127,18 @@ def test_already_housed_resident_not_rebuilt():
     pool = _pool([Role.BUILDER, Role.RESIDENT], wealth=500.0, has_house=True)
     info = attempt_builds(pool, EconomyConfig(**NEVER_FAIL), np.random.default_rng(0))
     assert info["houses_built"] == 0
+
+
+def test_capital_returns_proportional_to_wealth_and_skip_inactive():
+    pool = _pool([Role.RESIDENT, Role.RESIDENT], wealth=200.0)
+    pool.wealth[:] = [100.0, 300.0]
+    pool.state[1] = State.DEAD  # inactive earns no return
+    cfg = EconomyConfig(wealth_return_rate=0.1)
+    cap = apply_capital_returns(pool, cfg)
+    assert cap[0] == 10.0  # 0.1 * 100
+    assert cap[1] == 0.0  # dead -> no capital income
+    assert pool.wealth[0] == 110.0  # return added to the stock
+    assert pool.wealth[1] == 300.0
 
 
 def test_price_rises_when_demand_exceeds_supply():
