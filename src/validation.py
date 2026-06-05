@@ -28,7 +28,8 @@ def extract_metrics(sim) -> dict[str, float]:
     alive = max(int(s["alive"]), 1)
     population = max(int(sim.params.population), 1)
     return {
-        "gini": float(s["gini"]),
+        # income-Gini is the like-for-like match to World Bank income inequality
+        "gini": float(s["income_gini"]),
         "builder_fraction": round(int(s["builders"]) / alive, 3),
         "affordability": float(s["affordability"]),
         "death_rate": round(int(s["dead"]) / population, 3),

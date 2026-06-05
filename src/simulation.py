@@ -79,6 +79,10 @@ class Simulation:
         # profession switching (income, not lifetime wealth).
         self.builder_income = self.economy.base_income
         self.resident_income = self.economy.base_income
+        # Smoothed per-agent income (wage + building revenue) -- the basis for the
+        # income-Gini, which is the like-for-like match to World Bank income Gini
+        # (the wealth-Gini below double-counts lifetime accumulation).
+        self.recent_income = np.zeros(params.population, dtype=np.float64)
         self.agents = AgentPool.create(
             params.population,
             self.rng,
@@ -125,8 +129,15 @@ class Simulation:
         supply = int(np.count_nonzero(active & (self.agents.role == Role.BUILDER)))
         self.price = update_price(self.price, demand, supply, self.economy)
 
-        earn_income(self.agents, self.economy)
+        wage_info = earn_income(self.agents, self.economy)
         result = attempt_builds(self.agents, self.economy, self.rng, self.price)
+
+        # Per-agent income this tick = wage + building revenue; smoothed (reuses
+        # the profession income-smoothing alpha, so no new mechanism parameter).
+        income = wage_info["wage"].copy()
+        income[result["paid_builders"]] += self.price
+        a = self.profession.income_ema_alpha
+        self.recent_income = (1 - a) * self.recent_income + a * income
 
         consequences = apply_failures(
             self.agents,
@@ -185,6 +196,7 @@ class Simulation:
             "housed": self.agents.housed_resident_count(),
             "mean_wealth": round(mean_wealth, 1),
             "gini": round(gini(active_wealth), 3),
+            "income_gini": round(gini(self.recent_income[active]), 3),
             "house_price": round(self.price, 1),
             "affordability": round(self.price / mean_wealth, 4) if mean_wealth else 0.0,
             "cum_failures": self.totals["build_failures"],

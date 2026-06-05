@@ -54,9 +54,11 @@ def earn_income(pool: AgentPool, config: EconomyConfig) -> dict[str, float]:
     """
     active = pool.active_mask()
     factor = config.income_skill_min + (1.0 - config.income_skill_min) * 2.0 * pool.skill
-    wage = config.base_income * np.clip(factor, 0.0, None)
-    pool.wealth[active] += wage[active]
-    return {"wage_paid": float(wage[active].sum())}
+    wage = np.where(active, config.base_income * np.clip(factor, 0.0, None), 0.0)
+    pool.wealth += wage
+    # "wage" is the per-agent wage this tick (0 for inactive) -- the basis for the
+    # income-Gini metric the sim assembles.
+    return {"wage_paid": float(wage.sum()), "wage": wage}
 
 
 def update_price(
@@ -119,7 +121,12 @@ def attempt_builds(
 
     n_builds = int(min(builders.size, occupants.size))
     if n_builds == 0:
-        return {"houses_built": 0, "failed_builders": empty, "failed_occupants": empty}
+        return {
+            "houses_built": 0,
+            "failed_builders": empty,
+            "failed_occupants": empty,
+            "paid_builders": empty,
+        }
 
     # Random pairing -- shuffle both pools and zip the first n_builds of each.
     rng.shuffle(builders)
@@ -153,6 +160,7 @@ def attempt_builds(
         "houses_built": int(succeeded.sum()),
         "failed_builders": pair_builders[failed],
         "failed_occupants": pair_occupants[failed],
+        "paid_builders": ok_builders,  # builders who earned `price` this tick
     }
 
 
