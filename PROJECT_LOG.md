@@ -34,6 +34,12 @@ Type: Decision
 
 The original README/DESIGN_PRINCIPLES mandated a terminal-only ASCII dashboard ("No GUI") as a hard rule. Reversed in favor of a single dead-simple GUI window (leaning Tkinter, stdlib, zero new deps): a 2D overhead "city Hammurabi" map on one side, the statistics dashboard on the other. Rationale: a terminal is character-cell, not pixel; the spatial map we want needs real pixels. The flat/sharp/dense aesthetic is retained — it just renders to a canvas. Statistics remain the main focus; the map is secondary. Map redraws once per tick, not per micro-action.
 
+## 2026-06-05 - Comparator framework built; real target data is an open thread
+
+Type: Open thread
+
+Built the validation comparator (src/validation.py): extract_metrics(sim) -> {gini, builder_fraction, affordability, death_rate}; score() gives a weighted relative-error distance to a target; best_fit() picks the closest profile; targets load from data/countries.json. This is the "data gate" machinery. BUT the bundled profiles are explicitly SYNTHETIC (No invention forbids fabricating real country statistics) and are in the model's own abstract units. Two unresolved decisions before this becomes real validation: (1) source real country statistics (Daniel provides, or an explicitly-sourced lookup) and cite them; (2) define the mapping between the model's abstract metrics (esp. affordability = price/mean_wealth, in model units <1) and real-world statistics (price/income ~3-10x), since the scales don't currently correspond. Until both are resolved, the comparator can only be exercised against synthetic targets.
+
 ## 2026-06-05 - Income-based switching tames the builder glut
 
 Type: Correction

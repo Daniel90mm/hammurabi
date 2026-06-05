@@ -1,0 +1,23 @@
+{
+  "_note": "SYNTHETIC, ILLUSTRATIVE targets -- NOT real-world data. Fabricating real country statistics is forbidden (No invention). These exist only to exercise the comparator machinery and are expressed in the model's own abstract metric units. Before any real validation, replace them with sourced figures and define the mapping between model metrics and real statistics.",
+  "_metrics": {
+    "gini": "wealth inequality, 0..1",
+    "builder_fraction": "share of active agents who are builders, 0..1",
+    "affordability": "house price / mean wealth (model units)",
+    "death_rate": "cumulative deaths / initial population, 0..1"
+  },
+  "profiles": {
+    "egalitarian_ref": {
+      "gini": 0.20,
+      "builder_fraction": 0.45,
+      "affordability": 0.30,
+      "death_rate": 0.02
+    },
+    "unequal_ref": {
+      "gini": 0.45,
+      "builder_fraction": 0.70,
+      "affordability": 0.10,
+      "death_rate": 0.15
+    }
+  }
+}
