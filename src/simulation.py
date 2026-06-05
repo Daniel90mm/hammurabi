@@ -186,7 +186,7 @@ class Simulation:
             "mean_wealth": round(mean_wealth, 1),
             "gini": round(gini(active_wealth), 3),
             "house_price": round(self.price, 1),
-            "affordability": round(self.price / mean_wealth, 2) if mean_wealth else 0.0,
+            "affordability": round(self.price / mean_wealth, 4) if mean_wealth else 0.0,
             "cum_failures": self.totals["build_failures"],
             "cum_resident_deaths": self.totals["resident_deaths"],
             "cum_builder_deaths": self.totals["builder_deaths"],
