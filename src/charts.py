@@ -72,7 +72,7 @@ class ChartsPanel:
 
         self.fig = Figure(figsize=(5.2, 3.4), dpi=100, facecolor=BG)
         self.fig.subplots_adjust(
-            left=0.10, right=0.97, top=0.90, bottom=0.10, hspace=0.55, wspace=0.30
+            left=0.08, right=0.98, top=0.92, bottom=0.09, hspace=0.48, wspace=0.18
         )
         self.ax_comp = self.fig.add_subplot(2, 2, 1)
         self.ax_pie = self.fig.add_subplot(2, 2, 2)

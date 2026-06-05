@@ -39,7 +39,6 @@ from render import (
     FG,
     HAIRLINE,
     LEGEND,
-    PIXEL,
     agent_colors,
     save_screenshot,
     stats_lines,
@@ -412,13 +411,15 @@ class Dashboard:
         # hairline border (sharp, 1px)
         c.create_rectangle(0, 0, w - 1, h - 1, outline=HAIRLINE)
 
+        # Adaptive dot size: scale so the dots fill the canvas at any population
+        # (sparse small runs were nearly invisible). ~40% of the per-agent cell.
+        n = max(self.draw_idx.size, 1)
+        px = int(np.clip(0.40 * np.sqrt((w * h) / n), 2, 9))
         colors = agent_colors(self.sim.agents)
         for i in self.draw_idx:
-            x = self.pos_x[i] * (w - PIXEL)
-            y = self.pos_y[i] * (h - PIXEL)
-            c.create_rectangle(
-                x, y, x + PIXEL, y + PIXEL, fill=colors[i], outline=""
-            )
+            x = self.pos_x[i] * (w - px)
+            y = self.pos_y[i] * (h - px)
+            c.create_rectangle(x, y, x + px, y + px, fill=colors[i], outline="")
 
     def _draw_stats(self) -> None:
         self.stats.config(text="\n".join(stats_lines(self.sim)))
